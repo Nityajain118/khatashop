@@ -176,6 +176,58 @@ const SettingsScreen = (() => {
           </div>
         </div>
 
+        <!-- PDF INVOICE SETTINGS -->
+        <div class="settings-section">
+          <div class="settings-title">🧾 PDF Invoice Settings</div>
+          <div class="card">
+
+            <!-- Page Size -->
+            <div class="form-group" style="margin-bottom:14px;">
+              <label class="form-label">📄 Page Size</label>
+              <div style="display:flex;gap:10px;">
+                <label id="sizeA4Btn" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:10px;border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:0.85rem;font-weight:600;transition:all 0.2s;background:${PDFService.getPageSize()==='a4'?'var(--accent)':'transparent'};color:${PDFService.getPageSize()==='a4'?'var(--bg-deep)':'var(--text-primary)'};"
+                  onclick="SettingsScreen.setPageSize('a4')">
+                  📄 A4 (210×297mm)
+                </label>
+                <label id="sizeA5Btn" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:10px;border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:0.85rem;font-weight:600;transition:all 0.2s;background:${PDFService.getPageSize()==='a5'?'var(--accent)':'transparent'};color:${PDFService.getPageSize()==='a5'?'var(--bg-deep)':'var(--text-primary)'};"
+                  onclick="SettingsScreen.setPageSize('a5')">
+                  📋 A5 (148×210mm)
+                </label>
+              </div>
+            </div>
+
+            <!-- Logo -->
+            <div class="form-group" style="margin-bottom:14px;">
+              <label class="form-label">🖼 Shop Logo (for PDF header)</label>
+              <div style="display:flex;gap:10px;align-items:center;">
+                ${PDFService.getLogo() ? `<img src="${PDFService.getLogo()}" style="width:48px;height:48px;object-fit:contain;border-radius:8px;border:1px solid var(--border);" id="logoPreview" />` : `<div style="width:48px;height:48px;background:var(--bg-card2);border:1px dashed var(--border);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1.5rem;" id="logoPreview">🖼</div>`}
+                <div style="flex:1;">
+                  <input type="file" id="logoPicker" accept="image/*" style="display:none" onchange="SettingsScreen.onLogoSelected(event)" />
+                  <button class="btn btn-secondary btn-full" style="margin-bottom:6px;" onclick="document.getElementById('logoPicker').click()">📂 Upload Logo</button>
+                  ${PDFService.getLogo() ? `<button class="btn btn-full" style="color:var(--danger);border:1px solid var(--danger);background:transparent;" onclick="SettingsScreen.clearLogo()">🗑 Remove Logo</button>` : ''}
+                </div>
+              </div>
+            </div>
+
+            <!-- Signature -->
+            <div class="form-group" style="margin-bottom:14px;">
+              <label class="form-label">✍️ Authorised Signature (for PDF footer)</label>
+              <div style="display:flex;gap:10px;align-items:center;">
+                ${PDFService.getSignature() ? `<img src="${PDFService.getSignature()}" style="width:80px;height:40px;object-fit:contain;border-radius:6px;border:1px solid var(--border);" id="sigPreview" />` : `<div style="width:80px;height:40px;background:var(--bg-card2);border:1px dashed var(--border);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:1.2rem;" id="sigPreview">✍️</div>`}
+                <div style="flex:1;">
+                  <input type="file" id="sigPicker" accept="image/*" style="display:none" onchange="SettingsScreen.onSignatureSelected(event)" />
+                  <button class="btn btn-secondary btn-full" style="margin-bottom:6px;" onclick="document.getElementById('sigPicker').click()">📂 Upload Signature</button>
+                  ${PDFService.getSignature() ? `<button class="btn btn-full" style="color:var(--danger);border:1px solid var(--danger);background:transparent;" onclick="SettingsScreen.clearSignature()">🗑 Remove Signature</button>` : ''}
+                </div>
+              </div>
+            </div>
+
+            <div style="font-size:0.75rem;color:var(--text-muted);margin-top:4px;">
+              💡 Logo &amp; Signature appear on all generated PDFs. Go to a customer detail screen to generate their full invoice.
+            </div>
+          </div>
+        </div>
+
         <!-- DATA MANAGEMENT -->
         <div class="settings-section">
           <div class="settings-title">💾 Data Management</div>
@@ -419,10 +471,68 @@ const SettingsScreen = (() => {
     App.navigate('home');
   }
 
+  /* ── PDF Invoice Branding ── */
+  function _compressImage(file, maxW, cb) {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const scale = Math.min(1, maxW / img.width);
+        const canvas = document.createElement('canvas');
+        canvas.width  = img.width  * scale;
+        canvas.height = img.height * scale;
+        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+        cb(canvas.toDataURL('image/png', 0.85));
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function onLogoSelected(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) { Toast.show('⚠️ Logo max 2MB'); return; }
+    _compressImage(file, 300, (b64) => {
+      PDFService.saveLogo(b64);
+      Toast.show('✅ Logo saved! Re-open Settings to see preview.');
+      App.navigate('settings');
+    });
+  }
+
+  function onSignatureSelected(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    if (file.size > 1 * 1024 * 1024) { Toast.show('⚠️ Signature max 1MB'); return; }
+    _compressImage(file, 400, (b64) => {
+      PDFService.saveSignature(b64);
+      Toast.show('✅ Signature saved! Re-open Settings to see preview.');
+      App.navigate('settings');
+    });
+  }
+
+  function clearLogo()      { PDFService.clearLogo();      Toast.show('🗑 Logo removed.');     App.navigate('settings'); }
+  function clearSignature() { PDFService.clearSignature(); Toast.show('🗑 Signature removed.'); App.navigate('settings'); }
+
+  function setPageSize(size) {
+    PDFService.savePageSize(size);
+    /* refresh the two buttons visually */
+    ['a4','a5'].forEach(s => {
+      const btn = document.getElementById(`size${s.toUpperCase()}Btn`);
+      if (!btn) return;
+      const active = (s === size);
+      btn.style.background   = active ? 'var(--accent)' : 'transparent';
+      btn.style.color        = active ? 'var(--bg-deep)' : 'var(--text-primary)';
+      btn.style.borderColor  = active ? 'var(--accent)' : 'var(--border)';
+    });
+    Toast.show(`📄 Page size set to ${size.toUpperCase()}`);
+  }
+
   return {
     render, saveShop, toggleMode, toggleCalcMode, toggleTheme, toggleNotifications,
     exportData, importData, doImport, clearAll, closeConfirm, executeClearAll,
-    toggleManualMode, applyManual, saveApiConfig, testApiConfig
+    toggleManualMode, applyManual, saveApiConfig, testApiConfig,
+    onLogoSelected, onSignatureSelected, clearLogo, clearSignature, setPageSize,
   };
 
 })();

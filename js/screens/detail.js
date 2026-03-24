@@ -514,13 +514,19 @@ const DetailScreen = (() => {
     const filteredTxns = _transactions.filter(t => !t.isSettled);
 
     if (_viewMode === 'simple') {
-      // Simple Mode: Just action buttons
+      // Simple Mode: action buttons
       summaryEl.innerHTML = `
-        <div style="display:flex; gap:12px;">
+        <div style="display:flex; gap:12px; margin-bottom:10px;">
           <button class="btn btn-full" style="flex:1; background:linear-gradient(135deg, #10b981, #059669); color:white; font-weight:700; font-size:0.95rem;" onclick="DetailScreen.openQuickPay()">💰 Payment करें</button>
           <button class="btn btn-full" style="flex:1; background:linear-gradient(135deg, #ef4444, #dc2626); color:white; font-weight:700; font-size:0.95rem;" onclick="App.navigate('addEntry','${_customerId}')">🔴 Udhaar Dein</button>
         </div>
+        <div style="display:flex; gap:8px;">
+          <button class="btn btn-full" style="flex:1; background:var(--bg-card2); border:1px solid var(--border); color:var(--accent); font-weight:600; font-size:0.82rem; padding:10px 6px;" onclick="PDFService.generateInvoice('${_customerId}')">🧾 Invoice PDF</button>
+          <button class="btn btn-full" style="flex:1; background:var(--bg-card2); border:1px solid var(--border); color:#25D366; font-weight:600; font-size:0.82rem; padding:10px 6px;" onclick="PDFService.shareInvoiceWhatsApp('${_customerId}')">📤 WhatsApp</button>
+          <button class="btn btn-full" style="flex:1; background:var(--bg-card2); border:1px solid var(--border); color:var(--text-secondary); font-weight:600; font-size:0.82rem; padding:10px 6px;" onclick="PDFService.exportCleanJSON('${_customerId}')">📋 Export</button>
+        </div>
       `;
+
     } else if (!hasSelection) {
       // Khata — Full summary
       const result = _getEngineResult(filteredTxns);
