@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <title>Tithi Ledger Pro – Jain Finance</title>
+  <meta name="description" content="Professional Hindi Ledger – Loan tracking, Hindu Tithi mode, PDF receipts and daily reports." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Noto+Sans+Devanagari:wght@400;600;700&display=swap" rel="stylesheet" />
+  <!-- jsPDF CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <link rel="stylesheet" href="css/theme.css" />
+  <link rel="stylesheet" href="css/animations.css" />
+</head>
+<body>
+  <!-- Apply saved theme INSTANTLY to prevent flash -->
+  <script>
+    (function(){
+      var t = localStorage.getItem('TLP_theme') || 'dark';
+      document.documentElement.setAttribute('data-theme', t);
+    })();
+  </script>
+  <!-- ── SPLASH SCREEN ── -->
+  <div id="splash" class="splash">
+    <div class="splash-inner">
+      <div class="splash-icon">🪔</div>
+      <h1 class="splash-title">Tithi Ledger Pro</h1>
+      <p class="splash-sub">Premium Loan Management</p>
+      <div class="splash-dots">
+        <span></span><span></span><span></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── APP SHELL ── -->
+  <div id="app" class="app hidden">
+
+    <!-- TOP BAR -->
+    <header class="topbar">
+      <button class="topbar-back hidden" id="btnBack" onclick="App.goBack()">&#8592;</button>
+      <div class="topbar-title" id="topbarTitle">Tithi Ledger Pro</div>
+      <div class="topbar-actions">
+        <button class="icon-btn" id="btnThemeToggle" onclick="ThemeToggle.toggle()" title="Theme">🌙</button>
+        <button class="icon-btn" id="btnHinduToggle" onclick="App.toggleMode()" title="Mode Switch">🪔</button>
+        <button class="icon-btn" onclick="App.navigate('settings')" title="Settings">⚙️</button>
+      </div>
+    </header>
+
+    <!-- CONTENT -->
+    <main id="screenContainer" class="screen-container"></main>
+
+    <!-- BOTTOM NAV -->
+    <nav class="bottom-nav">
+      <button class="nav-btn active" id="nav-home" onclick="App.navigate('home')">
+        <span class="nav-icon">🏠</span>
+        <span class="nav-label">Home</span>
+      </button>
+      <button class="nav-btn" id="nav-add" onclick="App.navigate('addEntry')">
+        <span class="nav-icon">➕</span>
+        <span class="nav-label">Add Loan</span>
+      </button>
+      <button class="nav-btn" id="nav-report" onclick="App.navigate('report')">
+        <span class="nav-icon">📊</span>
+        <span class="nav-label">Report</span>
+      </button>
+      <button class="nav-btn" id="nav-settings" onclick="App.navigate('settings')">
+        <span class="nav-icon">⚙️</span>
+        <span class="nav-label">Settings</span>
+      </button>
+    </nav>
+
+  </div>
+
+  <!-- TOAST -->
+  <div id="toast" class="toast hidden"></div>
+
+  <!-- PHOTO MODAL -->
+  <div id="photoModal" class="photo-modal" onclick="closePhoto()">
+    <span class="close-btn" onclick="closePhoto()">&times;</span>
+    <img id="modalImg" onclick="event.stopPropagation()">
+  </div>
+
+  <!-- ── SCRIPTS ── -->
+  <script src="js/models.js"></script>
+  <script src="js/utils/interestCalculator.js"></script>
+  <script src="js/db.js"></script>
+  <script src="js/services/tithi.js"></script>
+  <script src="js/services/interest.js"></script>
+  <script src="js/services/pdf.js"></script>
+  <script src="js/services/notification.js"></script>
+  <script src="js/services/report.js"></script>
+  <script src="js/widgets/toast.js"></script>
+  <script src="js/widgets/themeToggle.js"></script>
+  <script src="js/widgets/entryCard.js"></script>
+  <script src="js/widgets/modeSwitch.js"></script>
+  <script src="js/screens/home.js"></script>
+  <script src="js/screens/addEntry.js"></script>
+  <script src="js/screens/detail.js"></script>
+  <script src="js/screens/settings.js"></script>
+  <script src="js/screens/report.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    function showPhoto(src) {
+      if (!src) return;
+      document.getElementById("photoModal").style.display = "block";
+      document.getElementById("modalImg").src = src;
+    }
+
+    function closePhoto() {
+      document.getElementById("photoModal").style.display = "none";
+    }
+  </script>
+  
+  <script>
+    window.__APP_BOOTED = false;
+
+    document.addEventListener('DOMContentLoaded', () => {
+      if (window.__APP_BOOTED) return;
+      window.__APP_BOOTED = true;
+
+      // HARD RESET ANY OLD STATE
+      try {
+        sessionStorage.removeItem('screen');
+        sessionStorage.removeItem('route');
+      } catch (e) {}
+
+      // SAFETY TIMEOUT (prevents infinite splash)
+      setTimeout(() => {
+        const splash = document.getElementById('splash');
+        const app = document.getElementById('app');
+
+        if (splash) splash.style.display = 'none';
+        if (app) app.classList.remove('hidden');
+
+        if (window.App?.init) {
+          App.init();
+        }
+      }, 1200);
+    });
+  </script>
+</body>
+</html>

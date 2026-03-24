@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><title>Panchang Test v3</title></head>
+<body>
+<h2>Panchang Accuracy Test (v3)</h2>
+<pre id="output">Running...</pre>
+<script src="js/services/tithi.js?v=3"></script>
+<script>
+const tests = [
+  ["2026-03-23", "चैत्र", "शुक्ल", "चतुर्थी"],
+  ["2026-03-19", "चैत्र", "शुक्ल", "प्रतिपदा"],
+  ["2026-03-27", "चैत्र", "शुक्ल", "नवमी"],
+  ["2026-04-03", "चैत्र", "शुक्ल", "पूर्णिमा"],
+  ["2025-03-30", "चैत्र", "शुक्ल", "प्रतिपदा"],
+  ["2025-10-20", "कार्तिक", "कृष्ण", "अमावस्या"],
+  ["2024-04-09", "चैत्र", "शुक्ल", "प्रतिपदा"],
+  ["2024-11-01", "कार्तिक", "कृष्ण", "अमावस्या"],
+  ["2024-10-13", "आश्विन", "शुक्ल", "दशमी"],
+  ["2023-11-12", "कार्तिक", "कृष्ण", "अमावस्या"],
+  ["2023-10-24", "आश्विन", "शुक्ल", "दशमी"],
+  ["2025-08-09", "श्रावण", "शुक्ल", "पूर्णिमा"],
+  ["2024-08-19", "श्रावण", "शुक्ल", "पूर्णिमा"],
+  ["2025-04-06", "चैत्र", "शुक्ल", "नवमी"],
+  ["2024-08-26", "भाद्रपद", "कृष्ण", "अष्टमी"],
+];
+
+let out = "=== PANCHANG ACCURACY TEST (v3) ===\n\n";
+let pass = 0, fail = 0;
+
+for (const [date, expMaas, expPaksha, expTithi] of tests) {
+  const d = new Date(date + "T00:00:00+05:30");
+  const result = TithiService.get(d);
+  const parts = result.split(' ');
+  const gotMaas = parts[0] || '';
+  const gotPaksha = parts[1] || '';
+  const gotTithi = parts[2] || '';
+
+  const maasOk = gotMaas === expMaas;
+  const pakshaOk = gotPaksha === expPaksha;
+  const tithiOk = gotTithi === expTithi;
+  const allOk = maasOk && pakshaOk && tithiOk;
+
+  if (allOk) {
+    pass++;
+    out += "PASS " + date + ": " + result + "\n";
+  } else {
+    fail++;
+    out += "FAIL " + date + ": GOT [" + result + "] EXPECTED [" + expMaas + " " + expPaksha + " " + expTithi + "]\n";
+    if (!maasOk) out += "  Maas: got [" + gotMaas + "] expected [" + expMaas + "]\n";
+    if (!pakshaOk) out += "  Paksha: got [" + gotPaksha + "] expected [" + expPaksha + "]\n";
+    if (!tithiOk) out += "  Tithi: got [" + gotTithi + "] expected [" + expTithi + "]\n";
+  }
+}
+
+out += "\n=== RESULTS: " + pass + "/" + (pass+fail) + " passed ===\n";
+
+out += "\n=== SAMVAT TEST ===\n";
+out += "2026-03-23: " + TithiService.getSamvat(new Date("2026-03-23T06:00:00+05:30")) + " (expected 2082)\n";
+out += "2025-03-30: " + TithiService.getSamvat(new Date("2025-03-30T06:00:00+05:30")) + " (expected 2082)\n";
+out += "2025-01-15: " + TithiService.getSamvat(new Date("2025-01-15T06:00:00+05:30")) + " (expected 2081)\n";
+out += "2024-04-09: " + TithiService.getSamvat(new Date("2024-04-09T06:00:00+05:30")) + " (expected 2081)\n";
+
+document.getElementById('output').textContent = out;
+</script>
+</body>
+</html>

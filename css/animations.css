@@ -1,0 +1,161 @@
+/* ================================================================
+   TITHI LEDGER PRO – ANIMATIONS
+   ================================================================ */
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-12px); }
+}
+
+@keyframes dotPulse {
+  0%, 60%, 100% { transform: scale(1); opacity: 0.6; }
+  30% { transform: scale(1.4); opacity: 1; }
+}
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(30px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(40px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+@keyframes bounceIn {
+  0% { transform: scale(0.3); opacity: 0; }
+  50% { transform: scale(1.05); }
+  70% { transform: scale(0.9); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* Skeleton loader */
+.skeleton {
+  background: linear-gradient(90deg, var(--bg-card) 25%, var(--bg-card2) 50%, var(--bg-card) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: var(--radius-sm);
+}
+
+/* Ripple on button tap */
+.btn { position: relative; overflow: hidden; }
+.btn::after {
+  content: '';
+  position: absolute; inset: 0; border-radius: inherit;
+  background: rgba(255,255,255,0.15);
+  transform: scale(0); opacity: 0;
+  transition: transform 0.4s ease, opacity 0.4s ease;
+}
+.btn:active::after {
+  transform: scale(2.5); opacity: 0;
+  transition: 0s;
+}
+
+/* Card hover glow */
+.card { transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease; }
+
+/* Nav active bounce */
+.nav-btn.active .nav-icon { animation: bounceIn 0.4s ease; }
+
+/* FAB spin on hover */
+.fab-add { transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.3s ease; }
+
+/* Number count-up effect via CSS */
+.count-up { transition: all 0.5s ease; }
+
+/* Entrance for new cards */
+.entry-card-enter {
+  animation: slideUp 0.35s cubic-bezier(0.34,1.56,0.64,1) both;
+}
+
+/* Stagger children */
+.stagger > *:nth-child(1) { animation-delay: 0.05s; }
+.stagger > *:nth-child(2) { animation-delay: 0.10s; }
+.stagger > *:nth-child(3) { animation-delay: 0.15s; }
+.stagger > *:nth-child(4) { animation-delay: 0.20s; }
+.stagger > *:nth-child(5) { animation-delay: 0.25s; }
+.stagger > *:nth-child(6) { animation-delay: 0.30s; }
+.stagger > *:nth-child(7) { animation-delay: 0.35s; }
+.stagger > *:nth-child(8) { animation-delay: 0.40s; }
+.stagger > *:nth-child(n+9) { animation-delay: 0.45s; }
+
+/* Percentage fill animation */
+.progress-fill { animation: growWidth 1s ease forwards; }
+@keyframes growWidth {
+  from { width: 0 !important; }
+}
+
+/* Glow pulse for overdue */
+@keyframes glowPulse {
+  0%, 100% { box-shadow: 0 0 0 rgba(239,83,80,0); }
+  50% { box-shadow: 0 0 12px rgba(239,83,80,0.35); }
+}
+.card.overdue { animation: glowPulse 2s ease infinite; }
+
+/* ── PERFORMANCE OPTIMIZATIONS ── */
+
+/* GPU-accelerated compositing for animated elements */
+.screen-slide-in,
+.entry-card-enter,
+.splash,
+.toast,
+.fab-add,
+.nav-btn .nav-icon {
+  will-change: transform, opacity;
+  transform: translateZ(0);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+
+/* Smooth momentum scrolling */
+.screen-container {
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+  overscroll-behavior-y: contain;
+}
+
+/* Prevent tap delay on mobile */
+* {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+/* Optimized card transitions — GPU layer */
+.card {
+  transform: translateZ(0);
+  contain: layout style paint;
+}
+
+/* Smooth screen transitions */
+.screen-slide-in {
+  animation: slideIn 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+}
+
+/* Respect reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

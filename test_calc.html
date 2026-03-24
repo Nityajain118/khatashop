@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Calculation Verification Tests</title>
+  <script src="js/utils/interestCalculator.js"></script>
+  <style>
+    body { font-family: monospace; padding: 20px; background: #1a1a2e; color: #e0e0e0; }
+    .pass { color: #4caf50; font-weight: bold; }
+    .fail { color: #ef5350; font-weight: bold; }
+    h2 { color: #ffd700; }
+    table { border-collapse: collapse; margin-top: 10px; }
+    td, th { padding: 8px 16px; border: 1px solid #333; text-align: left; }
+    th { background: #2a2a4a; color: #ffd700; }
+  </style>
+</head>
+<body>
+  <h2>🧮 Calculation Engine — Unified Strict Compound Formula</h2>
+  <div id="results"></div>
+  <script>
+    const P = 10000;
+    const R = 2;
+
+    // Formula: A = P * (1 + 2/100)^(days/30)
+    // 30 days -> power of 1
+    // 10000 * 1.02 = 10200
+    // 45 days -> power of 1.5
+    // 10000 * (1.02)^1.5 = 10000 * 1.0301495 = 10301.495 -> 10301
+
+    const tests = [
+      { label: '30 days (Exactly 1 Month)', days: 30, expectedTotal: 10200, expectedInterest: 200 },
+      { label: '45 days (1.5 Months)', days: 45, expectedTotal: 10301, expectedInterest: 301 },
+      { label: '360 days (Exactly 12 Months)', days: 360, expectedTotal: 12682, expectedInterest: 2682 },
+      { label: '720 days (Exactly 24 Months)', days: 720, expectedTotal: 16084, expectedInterest: 6084 }
+    ];
+
+    let html = '<table><tr><th>Test</th><th>Days</th><th>Expected Total</th><th>Calculated Total</th><th>Expected Int</th><th>Calculated Int</th><th>Status</th></tr>';
+
+    tests.forEach(t => {
+      const res = FinanceEngine.calculateEntry({
+        principal: P,
+        ratePerMonth: R,
+        days: t.days
+      });
+
+      const totalDiff = Math.abs(res.total - t.expectedTotal);
+      const intDiff = Math.abs(res.interest - t.expectedInterest);
+      const pass = totalDiff === 0 && intDiff === 0;
+
+      html += `<tr>
+        <td>${t.label}</td>
+        <td>${t.days}</td>
+        <td>₹${t.expectedTotal.toLocaleString('en-IN')}</td>
+        <td>₹${res.total.toLocaleString('en-IN')}</td>
+        <td>₹${t.expectedInterest.toLocaleString('en-IN')}</td>
+        <td>₹${res.interest.toLocaleString('en-IN')}</td>
+        <td class="${pass ? 'pass' : 'fail'}">${pass ? '✅ EXACT MATCH' : '❌ FAIL (Mismatch)'}</td>
+      </tr>`;
+    });
+
+    html += '</table>';
+    
+    html += '<h2>📝 Strict DB Simulation</h2>';
+    const fakeEntries = [
+        FinanceEngine.calculateEntry({ principal: 10000, ratePerMonth: 2, days: 30, type: 'UDHAAR' }),
+        FinanceEngine.calculateEntry({ principal: 5000, ratePerMonth: 1.5, days: 60, type: 'UDHAAR' }), // 5000 * (1.015)^2 = 5000 * 1.030225 = 5151.125
+        FinanceEngine.calculateEntry({ principal: 2000, ratePerMonth: 2, days: 15, type: 'JAMA' })     // 2000 * (1.02)^0.5 = 2000 * 1.00995 = 2019.9
+    ];
+    
+    // Expected Sums:
+    // Udhaar: 10200 + 5151.125 = 15351.125
+    // Jama: 2019.9
+    // Net Payable: 15351.125 - 2019.9 = 13331.225 -> round -> 13331
+    // Udhaar Total rounded: 15351
+    // Jama Total rounded: 2020
+    
+    const totals = FinanceEngine.calculateTotals(fakeEntries);
+    html += `<p>Udhaar Raw Sum Round: ₹${totals.udhaarTotal} (Expected: 15351)</p>`;
+    html += `<p>Jama Raw Sum Round: ₹${totals.jamaTotal} (Expected: 2020)</p>`;
+    html += `<p>Net Payable Round: ₹${totals.netPayable} (Expected: 13331)</p>`;
+
+    document.getElementById('results').innerHTML = html;
+  </script>
+</body>
+</html>
