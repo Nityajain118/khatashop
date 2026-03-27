@@ -689,6 +689,101 @@ select.form-control option { background: var(--bg-card); }
   box-shadow: var(--shadow-glow);
 }
 
+/* ── ACCOUNTS GROUP LIST ── */
+.accounts-group-list {
+  display: flex; flex-direction: column; gap: 16px;
+}
+
+.accounts-search-box {
+  margin-bottom: 16px; position: sticky; top: 0; z-index: 50;
+  background: var(--bg-deep); padding: 12px 0;
+}
+
+.accounts-search-input {
+  width: 100%; padding: 12px 16px; border-radius: 30px;
+  background: var(--bg-card); border: 1.5px solid var(--gold-border);
+  color: var(--text-primary); font-size: 0.9rem;
+  outline: none; transition: all var(--transition);
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.3);
+}
+.accounts-search-input:focus {
+  border-color: var(--accent); box-shadow: inset 0 1px 3px rgba(0,0,0,0.3), 0 0 12px rgba(255,215,0,0.08);
+}
+.accounts-search-input::placeholder { color: var(--text-muted); }
+
+.accounts-empty {
+  text-align: center; padding: 40px 20px;
+  color: var(--text-muted); font-size: 1.05rem;
+}
+
+.accounts-city-group {
+  background: var(--bg-card); border: 1px solid var(--gold-border);
+  border-radius: var(--radius-lg); overflow: hidden;
+  box-shadow: var(--shadow-card); transition: all var(--transition);
+}
+.accounts-city-group:hover { border-color: rgba(255,215,0,0.35); }
+
+.accounts-city-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 16px; cursor: pointer;
+  background: linear-gradient(135deg, var(--bg-card2) 0%, var(--bg-card) 100%);
+  border-bottom: 1px solid var(--border);
+  user-select: none; transition: all var(--transition);
+}
+.accounts-city-header:hover {
+  background: linear-gradient(135deg, rgba(255,215,0,0.08), rgba(255,215,0,0.04));
+}
+
+.accounts-city-icon { font-size: 1.1rem; }
+.accounts-city-name { font-weight: 700; font-size: 0.95rem; color: var(--text-primary); font-family: var(--font-deva); }
+.accounts-city-count { font-size: 0.8rem; color: var(--text-muted); margin-left: 6px; }
+.accounts-toggle-icon { color: var(--gold); font-size: 0.8rem; font-weight: 700; transition: transform var(--transition); }
+
+.accounts-city-list {
+  display: flex; flex-direction: column; padding: 0;
+}
+
+.accounts-item {
+  display: flex; align-items: center; gap: 12px; padding: 12px 16px;
+  border-bottom: 1px solid var(--gold-glow);
+  transition: all var(--transition);
+  animation: fadeIn 0.3s ease;
+}
+.accounts-item:last-child { border-bottom: none; }
+.accounts-item:hover { background: rgba(255,215,0,0.04); }
+
+.accounts-item-avatar {
+  width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0;
+  background: linear-gradient(135deg, var(--gold), var(--gold-soft));
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 0.8rem; color: var(--bg-deep);
+  box-shadow: 0 2px 8px rgba(255,215,0,0.15);
+}
+
+.accounts-item-info { flex: 1; min-width: 0; }
+.accounts-item-name {
+  font-weight: 600; font-size: 0.9rem; color: var(--text-primary);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  font-family: var(--font-deva);
+}
+.accounts-item-phone {
+  font-size: 0.75rem; color: var(--text-secondary);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  margin-top: 2px;
+}
+
+.accounts-show-more {
+  padding: 10px 16px; font-size: 0.8rem; color: var(--text-muted);
+  background: rgba(255,215,0,0.03); border-top: 1px solid var(--gold-glow);
+  text-align: center; font-weight: 500;
+}
+
+/* ── ANIMATION FOR LIST ITEMS ── */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
 /* ── PRINT STYLES ── */
 @media print {
   .topbar, .bottom-nav, .fab-add, #bottomPanel { display: none !important; }

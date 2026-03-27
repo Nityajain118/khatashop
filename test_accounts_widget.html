@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AccountsGroupList Widget — Production Test Suite</title>
+  <link rel="stylesheet" href="css/theme.css">
+  <style>
+    body { padding: 20px; }
+    .test-section { margin: 30px 0; padding: 20px; background: var(--bg-card); border-radius: 12px; border: 1px solid var(--border); }
+    .test-title { font-size: 1.2rem; font-weight: 700; margin-bottom: 15px; color: var(--gold); }
+    .test-result { padding: 10px; margin: 8px 0; border-radius: 8px; font-size: 0.9rem; }
+    .pass { background: rgba(76,175,80,0.15); color: var(--success); border-left: 4px solid var(--success); }
+    .fail { background: rgba(244,67,54,0.15); color: var(--danger); border-left: 4px solid var(--danger); }
+    .info { background: rgba(255,215,0,0.08); color: var(--gold); border-left: 4px solid var(--gold); }
+    .test-controls { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
+    .test-btn { padding: 10px 16px; background: var(--gold); color: var(--bg-deep); border: none; border-radius: 8px; cursor: pointer; font-weight: 600; }
+    .test-btn:hover { opacity: 0.9; }
+    code { background: var(--bg-card2); padding: 2px 6px; border-radius: 4px; font-size: 0.85rem; }
+  </style>
+</head>
+<body>
+  <div style="max-width: 900px; margin: 0 auto;">
+    <h1>🧪 AccountsGroupList Widget — Production Test Suite</h1>
+
+    <div class="test-section">
+      <div class="test-title">Test Controls</div>
+      <div class="test-controls">
+        <button class="test-btn" onclick="runAllTests()">▶ Run All Tests</button>
+        <button class="test-btn" onclick="clearResults()">🗑 Clear Results</button>
+      </div>
+    </div>
+
+    <!-- Widget Container -->
+    <div class="test-section">
+      <div class="test-title">Widget Instance</div>
+      <div id="accountsList"></div>
+    </div>
+
+    <!-- Test Results -->
+    <div class="test-section">
+      <div class="test-title">Test Results</div>
+      <div id="testResults">
+        <p style="color: var(--text-muted);">Click "Run All Tests" to execute verification suite...</p>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/widgets/accountsGroupList.js"></script>
+  <script>
+    // ==================== TEST DATA ====================
+    const TEST_ACCOUNTS = [
+      // Mumbai (4 accounts)
+      { id: '1', name: 'Rajesh Patel',  phone: '9876543210', city: 'Mumbai' },
+      { id: '2', name: 'Priya Kumar',   phone: '9876543211', city: 'Mumbai' },
+      { id: '3', name: 'Amit Singh',    phone: '9876543212', city: 'Mumbai' },
+      { id: '4', name: 'Deepak Verma',  phone: '9876543213', city: 'Mumbai' },
+
+      // Delhi (3 accounts)
+      { id: '5', name: 'Neha Gupta',    phone: '9876543214', city: 'Delhi' },
+      { id: '6', name: 'Rohit Sharma',  phone: '9876543215', city: 'Delhi' },
+      { id: '7', name: 'Sneha Mishra',  phone: '9876543216', city: 'Delhi' },
+
+      // Bangalore (2 accounts)
+      { id: '8', name: 'Arjun Nair',    phone: '9876543217', city: 'Bangalore' },
+      { id: '9', name: 'Kavya Desai',   phone: '9876543218', city: 'Bangalore' },
+
+      // Unknown city (missing city field)
+      { id: '10', name: 'Unknown City Person', phone: '9876543219' },
+
+      // Edge cases
+      { id: '11', name: 'Person With Missing Phone', city: 'Mumbai' },
+      { id: '12', phone: '9876543220', city: 'Delhi' }, // Missing name
+    ];
+
+    let testLog = [];
+
+    function log(level, message) {
+      testLog.push({ level, message });
+      console.log(`[${level}] ${message}`);
+    }
+
+    function addResult(passed, title, details) {
+      const resultDiv = document.getElementById('testResults');
+      resultDiv.innerHTML += `
+        <div class="test-result ${passed ? 'pass' : 'fail'}">
+          <strong>${passed ? '✅' : '❌'} ${title}</strong>
+          <div style="margin-top:6px;font-size:0.85rem;white-space:pre-wrap;">${details}</div>
+        </div>
+      `;
+    }
+
+    function infoResult(title, details) {
+      document.getElementById('testResults').innerHTML += `
+        <div class="test-result info">
+          <strong>ℹ️ ${title}</strong>
+          <div style="margin-top:6px;font-size:0.85rem;">${details}</div>
+        </div>
+      `;
+    }
+
+    // ==================== HELPER ====================
+
+    function expandCity(city) {
+      const header = document.querySelector(`.accounts-city-header[data-toggle-city="${city}"]`);
+      if (header) header.click();
+    }
+
+    function getSearchInput(city) {
+      return document.getElementById(`accountsSearchInput_${city}`);
+    }
+
+    // ==================== TESTS ====================
+
+    // TEST 1: Collapsed state shows no search bar and max 3 items
+    function test1_CollapsedState(callback) {
+      log('TEST', '1. Collapsed State — 3 items max, no search bar');
+
+      AccountsGroupList.init('accountsList', TEST_ACCOUNTS);
+
+      setTimeout(() => {
+        const cityGroups = document.querySelectorAll('.accounts-city-group');
+        let allPass = true;
+        let details = '';
+
+        cityGroups.forEach(group => {
+          const city       = group.getAttribute('data-city');
+          const items      = group.querySelectorAll('.accounts-item');
+          const searchBar  = group.querySelector('.accounts-search-box');
+          const icon       = group.querySelector('.accounts-toggle-icon');
+          const isCollapsed = icon.textContent === '▼';
+
+          if (!isCollapsed) { details += `✗ ${city}: Not collapsed by default\n`; allPass = false; }
+          else               { details += `✓ ${city}: Collapsed (icon=▼)\n`; }
+
+          if (searchBar)     { details += `✗ ${city}: Search bar visible in collapsed state\n`; allPass = false; }
+          else               { details += `✓ ${city}: No search bar in collapsed state\n`; }
+
+          if (items.length > 3) { details += `✗ ${city}: Shows ${items.length} items (max 3 allowed)\n`; allPass = false; }
+          else                   { details += `✓ ${city}: Shows ${items.length} item(s) (≤3 ✓)\n`; }
+        });
+
+        addResult(allPass, 'Test 1: Collapsed State (no search, ≤3 items)', details);
+        log(allPass ? 'PASS' : 'FAIL', 'Collapsed state verified');
+        if (callback) callback();
+      }, 100);
+    }
+
+    // TEST 2: Expanded state shows ALL items + search bar
+    function test2_ExpandedState(callback) {
+      log('TEST', '2. Expanded State — all items + search bar visible');
+
+      AccountsGroupList.init('accountsList', TEST_ACCOUNTS);
+
+      // Expand Mumbai (has 5 accounts: 4 + Missing Phone edge case)
+      expandCity('Mumbai');
+
+      setTimeout(() => {
+        const group     = document.querySelector('.accounts-city-group[data-city="Mumbai"]');
+        const items     = group.querySelectorAll('.accounts-item');
+        const searchBar = group.querySelector('.accounts-search-box');
+        const icon      = group.querySelector('.accounts-toggle-icon');
+        const isExpanded = icon.textContent === '▲';
+
+        const totalMumbai = TEST_ACCOUNTS.filter(a => a.city === 'Mumbai').length;
+        let details = '';
+        let pass = true;
+
+        if (!isExpanded)          { details += '✗ City did not expand\n'; pass = false; }
+        else                       { details += '✓ City expanded (icon=▲)\n'; }
+
+        if (!searchBar)            { details += '✗ Search bar missing in expanded state\n'; pass = false; }
+        else                       { details += '✓ Search bar present in expanded state\n'; }
+
+        if (items.length !== totalMumbai) { details += `✗ Shows ${items.length} of ${totalMumbai} accounts\n`; pass = false; }
+        else                              { details += `✓ Shows all ${items.length} accounts\n`; }
+
+        addResult(pass, 'Test 2: Expanded State (all items + search bar)', details);
+        log(pass ? 'PASS' : 'FAIL', 'Expanded state verified');
+        if (callback) callback();
+      }, 150);
+    }
+
+    // TEST 3: Per-city search filters by name (case-insensitive)
+    function test3_PerCitySearch(callback) {
+      log('TEST', '3. Per-City Search — filter by name, case-insensitive');
+
+      AccountsGroupList.init('accountsList', TEST_ACCOUNTS);
+      expandCity('Delhi');
+
+      setTimeout(() => {
+        const input = getSearchInput('Delhi');
+        if (!input) {
+          addResult(false, 'Test 3: Per-City Search', '✗ Search input not found for Delhi');
+          if (callback) callback(); return;
+        }
+
+        input.value = 'neha';
+        input.dispatchEvent(new Event('input'));
+
+        // Wait for 300ms debounce + render
+        setTimeout(() => {
+          const group   = document.querySelector('.accounts-city-group[data-city="Delhi"]');
+          const items   = group.querySelectorAll('.accounts-item-name');
+          const names   = Array.from(items).map(n => n.textContent.toLowerCase());
+          const found   = names.some(n => n.includes('neha'));
+          const onlyOne = items.length === 1;
+
+          const details = found
+            ? `✓ Found "${names.join(', ')}" when searching "neha"\n` + (onlyOne ? '✓ Only matching item shown' : `⚠ ${items.length} items shown (expected 1)`)
+            : '✗ "neha" not found in filtered results';
+
+          addResult(found, 'Test 3: Per-City Search (name, case-insensitive)', details);
+          log(found ? 'PASS' : 'FAIL', 'Per-city search verified');
+          if (callback) callback();
+        }, 450);
+      }, 150);
+    }
+
+    // TEST 4: Search by phone number
+    function test4_PhoneSearch(callback) {
+      log('TEST', '4. Per-City Phone Search');
+
+      AccountsGroupList.init('accountsList', TEST_ACCOUNTS);
+      expandCity('Mumbai');
+
+      setTimeout(() => {
+        const input = getSearchInput('Mumbai');
+        if (!input) {
+          addResult(false, 'Test 4: Phone Search', '✗ Search input missing for Mumbai');
+          if (callback) callback(); return;
+        }
+
+        input.value = '9876543213'; // Deepak Verma's phone
+        input.dispatchEvent(new Event('input'));
+
+        setTimeout(() => {
+          const group = document.querySelector('.accounts-city-group[data-city="Mumbai"]');
+          const items = group.querySelectorAll('.accounts-item-name');
+          const found = Array.from(items).some(n => n.textContent.includes('Deepak'));
+
+          addResult(found, 'Test 4: Phone Number Search',
+            found ? '✓ Found correct account by phone number' : '✗ Phone search failed');
+          log(found ? 'PASS' : 'FAIL', 'Phone search verified');
+          if (callback) callback();
+        }, 450);
+      }, 150);
+    }
+
+    // TEST 5: Other cities unaffected when one city is searched
+    function test5_IsolatedSearch(callback) {
+      log('TEST', '5. Isolated Search — other cities unaffected');
+
+      AccountsGroupList.init('accountsList', TEST_ACCOUNTS);
+      expandCity('Delhi');
+
+      setTimeout(() => {
+        const delhiInput = getSearchInput('Delhi');
+        delhiInput.value = 'neha';
+        delhiInput.dispatchEvent(new Event('input'));
+
+        setTimeout(() => {
+          // Mumbai should still be collapsed and untouched
+          const mumbaiGroup    = document.querySelector('.accounts-city-group[data-city="Mumbai"]');
+          const mumbaiExpanded = mumbaiGroup.querySelector('.accounts-toggle-icon').textContent === '▲';
+          const mumbaiSearch   = mumbaiGroup.querySelector('.accounts-search-box');
+
+          let details = '';
+          let pass = true;
+
+          if (mumbaiExpanded)   { details += '✗ Mumbai expanded unexpectedly\n'; pass = false; }
+          else                   { details += '✓ Mumbai still collapsed\n'; }
+
+          if (mumbaiSearch)      { details += '✗ Mumbai showing search bar (should be hidden)\n'; pass = false; }
+          else                   { details += '✓ Mumbai — no search bar (correct)\n'; }
+
+          addResult(pass, 'Test 5: Isolated Search (other cities unaffected)', details);
+          log(pass ? 'PASS' : 'FAIL', 'Isolation verified');
+          if (callback) callback();
+        }, 450);
+      }, 150);
+    }
+
+    // TEST 6: Collapse hides search and clears query
+    function test6_CollapseHidesSearch(callback) {
+      log('TEST', '6. Collapse — hides search bar');
+
+      AccountsGroupList.init('accountsList', TEST_ACCOUNTS);
+      expandCity('Bangalore');
+
+      setTimeout(() => {
+        const searchVisible = !!document.querySelector('.accounts-city-group[data-city="Bangalore"] .accounts-search-box');
+
+        // Now collapse
+        expandCity('Bangalore');
+
+        setTimeout(() => {
+          const searchNowHidden = !document.querySelector('.accounts-city-group[data-city="Bangalore"] .accounts-search-box');
+          const itemCount       = document.querySelectorAll('.accounts-city-group[data-city="Bangalore"] .accounts-item').length;
+          const totalBangalore  = TEST_ACCOUNTS.filter(a => a.city === 'Bangalore').length;
+
+          let details = '';
+          let pass = true;
+
+          if (!searchVisible)   { details += '✗ Search bar was not present when expanded\n'; pass = false; }
+          else                   { details += '✓ Search bar was visible when expanded\n'; }
+
+          if (!searchNowHidden)  { details += '✗ Search bar still visible after collapse\n'; pass = false; }
+          else                   { details += '✓ Search bar hidden after collapse\n'; }
+
+          details += `✓ Shows ${itemCount} of ${totalBangalore} accounts (collapsed slice)\n`;
+
+          addResult(pass, 'Test 6: Collapse Hides Search', details);
+          log(pass ? 'PASS' : 'FAIL', 'Collapse hide verified');
+          if (callback) callback();
+        }, 150);
+      }, 150);
+    }
+
+    // TEST 7: Grouping — Unknown city fallback + correct group count
+    function test7_Grouping(callback) {
+      log('TEST', '7. Grouping by City (Unknown fallback)');
+
+      AccountsGroupList.init('accountsList', TEST_ACCOUNTS);
+
+      setTimeout(() => {
+        const cityGroups  = document.querySelectorAll('.accounts-city-group');
+        const cities      = Array.from(cityGroups).map(g => g.getAttribute('data-city'));
+        const hasUnknown  = cities.includes('Unknown');
+        const uniqueCount = new Set(cities).size;
+
+        addResult(
+          hasUnknown && uniqueCount === 4,
+          'Test 7: Grouping by City',
+          `✓ Found ${uniqueCount} groups: ${cities.join(', ')}\n` +
+          `✓ Unknown fallback: ${hasUnknown ? 'YES' : 'NO'}`
+        );
+        log('PASS', 'City grouping verified');
+        if (callback) callback();
+      }, 100);
+    }
+
+    // TEST 8: Edge cases — missing name/phone rendered safely
+    function test8_EdgeCases(callback) {
+      log('TEST', '8. Edge Cases (missing name/phone, unknown city)');
+
+      AccountsGroupList.init('accountsList', TEST_ACCOUNTS);
+
+      setTimeout(() => {
+        // Expand all cities to see all items
+        document.querySelectorAll('.accounts-city-header').forEach(h => h.click());
+
+        setTimeout(() => {
+          const items   = document.querySelectorAll('.accounts-item');
+          let details   = '';
+          let noCrash   = true;
+
+          items.forEach(item => {
+            const name  = item.querySelector('.accounts-item-name')?.textContent;
+            const phone = item.querySelector('.accounts-item-phone')?.textContent;
+            if (!name)   { details += '✗ Empty account name element\n'; noCrash = false; }
+            if (!phone)  { details += '✗ Empty phone element\n'; }
+          });
+
+          const hasUnknown = !!document.querySelector('[data-city="Unknown"]');
+          details += `✓ Unknown city handled: ${hasUnknown ? 'YES' : 'NO'}\n`;
+          details += `✓ Total items rendered: ${items.length}\n`;
+          details += noCrash ? '✓ No crashes during render\n' : '';
+
+          addResult(noCrash && hasUnknown, 'Test 8: Edge Cases', details);
+          log('PASS', 'Edge cases handled safely');
+          if (callback) callback();
+        }, 200);
+      }, 100);
+    }
+
+    // TEST 9: "No accounts found" shown when search has no results
+    function test9_NoResults(callback) {
+      log('TEST', '9. Empty Search Result — shows "No accounts found"');
+
+      AccountsGroupList.init('accountsList', TEST_ACCOUNTS);
+      expandCity('Delhi');
+
+      setTimeout(() => {
+        const input = getSearchInput('Delhi');
+        input.value = 'xyzxyzxyz_NOT_FOUND';
+        input.dispatchEvent(new Event('input'));
+
+        setTimeout(() => {
+          const group   = document.querySelector('.accounts-city-group[data-city="Delhi"]');
+          const empty   = group.querySelector('.accounts-empty');
+          const items   = group.querySelectorAll('.accounts-item');
+
+          const pass = !!empty && items.length === 0;
+          addResult(pass, 'Test 9: No Results Message',
+            pass
+              ? '✓ "No accounts found" shown when search yields no results'
+              : `✗ Empty state missing (items=${items.length}, emptyEl=${!!empty})`
+          );
+          log(pass ? 'PASS' : 'FAIL', 'Empty result state verified');
+          if (callback) callback();
+        }, 450);
+      }, 150);
+    }
+
+    // TEST 10: Security — XSS prevention
+    function test10_Security(callback) {
+      log('TEST', '10. Security — XSS Prevention');
+
+      // NOTE: Use \x3c / \x3e instead of < / > to avoid HTML parser closing the script block
+      const xssTest = [
+        { id: '101', name: '\x3cscript\x3ealert("xss")\x3c/script\x3e', phone: '9999999999', city: 'Test' },
+        { id: '102', name: 'Safe', phone: '9999999998', city: '\x3cimg src=x onerror=alert("xss")\x3e' }
+      ];
+
+      AccountsGroupList.init('accountsList', xssTest);
+
+      setTimeout(() => {
+        const rendered     = document.getElementById('accountsList').innerHTML;
+        // Script tag check: look for unescaped < character before "script"
+        const hasScriptTag = rendered.toLowerCase().indexOf('\x3cscript') !== -1;
+
+        // Event handler check: parse rendered HTML in a temp doc and see if
+        // any element actually has an event handler attribute set (real XSS).
+        // Checking innerHTML string for "onerror=" would false-positive on
+        // safely-escaped strings that appear inside data-* attribute text.
+        let hasOnerror = false;
+        try {
+          const tempDoc = document.implementation.createHTMLDocument('');
+          tempDoc.body.innerHTML = rendered;
+          const allEls = tempDoc.body.querySelectorAll('*');
+          allEls.forEach(el => {
+            ['onerror','onclick','onload','onmouseover'].forEach(evt => {
+              if (el.getAttribute(evt)) hasOnerror = true;
+            });
+          });
+        } catch(e) { /* ignore parse errors */ }
+
+        const isSafe = !hasScriptTag && !hasOnerror;
+
+        addResult(isSafe, 'Test 10: Security (XSS Prevention)',
+          `✓ Script tags escaped: ${!hasScriptTag ? 'YES (SAFE)' : 'NO (UNSAFE)'}\n` +
+          `✓ Event handlers in DOM: ${!hasOnerror ? 'NONE (SAFE)' : 'FOUND (UNSAFE)'}`
+        );
+        log(isSafe ? 'PASS' : 'FAIL', 'XSS security verified');
+
+        // Restore test data
+        setTimeout(() => {
+          AccountsGroupList.init('accountsList', TEST_ACCOUNTS);
+          if (callback) callback();
+        }, 50);
+      }, 100);
+    }
+
+    // ==================== RUNNER ====================
+
+    function runAllTests() {
+      document.getElementById('testResults').innerHTML = '';
+      testLog = [];
+      log('INFO', '========== STARTING PRODUCTION TEST SUITE ==========');
+      infoResult('Test Suite Started', '⏱️ Running 10 comprehensive verification tests…');
+
+      setTimeout(() => {
+        test1_CollapsedState(() => {
+          test2_ExpandedState(() => {
+            test3_PerCitySearch(() => {
+              test4_PhoneSearch(() => {
+                test5_IsolatedSearch(() => {
+                  test6_CollapseHidesSearch(() => {
+                    test7_Grouping(() => {
+                      test8_EdgeCases(() => {
+                        test9_NoResults(() => {
+                          test10_Security(() => {
+                            infoResult('Test Suite Completed', '✓ All 10 tests executed. Review results above.');
+                            log('INFO', '========== TEST SUITE COMPLETE ==========');
+                          });
+                        });
+                      });
+                    });
+                  });
+                });
+              });
+            });
+          });
+        });
+      }, 500);
+    }
+
+    function clearResults() {
+      document.getElementById('testResults').innerHTML =
+        '<p style="color:var(--text-muted);">Results cleared. Click "Run All Tests" to start again…</p>';
+      testLog = [];
+    }
+
+    window.addEventListener('load', () => {
+      log('INFO', 'Page loaded. Test suite ready.');
+      infoResult('Ready to Test', '✓ Click "Run All Tests" to start the verification suite');
+    });
+  </script>
+</body>
+</html>

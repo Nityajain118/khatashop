@@ -1,17 +1,26 @@
 /* ================================================================
    HOME SCREEN — Customer-Grouped View with Village Sections
+   Collapsed: 3 cards per village, no village search
+   Expanded:  all cards + per-village search bar
+   Global search + filter tabs remain fully intact
    ================================================================ */
 
 const HomeScreen = (() => {
 
   let _searchTimer;
-  let _currentFilter = 'all';
+  let _currentFilter     = 'all';
   let _computedCustomers = null;
 
+  // Per-village state: { villageName: { expanded: bool, query: string, timer: null } }
+  let _villageState = {};
+
+  /* ── public: render full screen ─────────────────────────────── */
   function render(container) {
     _computedCustomers = null;
-    const stats  = ReportService.getOverallStats();
-    const daily  = ReportService.getDailyCollection();
+    _villageState      = {};
+
+    const stats = ReportService.getOverallStats();
+    const daily = ReportService.getDailyCollection();
 
     container.innerHTML = `
       <div class="screen screen-slide-in">
@@ -65,15 +74,16 @@ const HomeScreen = (() => {
     _setActiveFilter(_currentFilter);
     _loadCustomerCards();
 
-    // Subscribe to async panchang updates — refresh card when API responds
+    // Subscribe to async panchang updates
     document.removeEventListener('panchangUpdated', _onPanchangUpdated);
     document.addEventListener('panchangUpdated', _onPanchangUpdated);
   }
 
+  /* ── chip / tab helpers ─────────────────────────────────────── */
   function chip(label, val, icon, type = '') {
     const colors = { accent: 'var(--accent-glow)', danger: 'var(--danger)', success: 'var(--success)', '': 'var(--text-primary)' };
     return `<div class="summary-chip">
-      <div class="amount" style="color:${colors[type] || colors['']}">${icon} ${val}</div>
+      <div class="amount" style="color:${colors[type] || colors['']};">${icon} ${val}</div>
       <div class="label">${label}</div>
     </div>`;
   }
@@ -95,35 +105,33 @@ const HomeScreen = (() => {
 
   function _setActiveFilter(key) {
     document.querySelectorAll('[id^="tab-"]').forEach(btn => {
-      btn.style.background   = 'rgba(0,0,0,0.2)';
-      btn.style.color        = 'var(--text-secondary)';
+      btn.style.background = 'rgba(0,0,0,0.2)';
+      btn.style.color      = 'var(--text-secondary)';
     });
     const active = document.getElementById(`tab-${key}`);
     if (active) {
-      active.style.background  = 'var(--bg-card)';
-      active.style.color       = 'var(--gold)';
+      active.style.background = 'var(--bg-card)';
+      active.style.color      = 'var(--gold)';
     }
   }
 
+  /* ── customer data helpers ───────────────────────────────────── */
   function _getComputedCustomers() {
     if (_computedCustomers) return _computedCustomers;
     const all = DB.getCustomers().map(c => ({ ...c }));
     all.forEach(c => {
       const loans = DB.getCustomerLoans(c.customerId);
       c._loans = loans;
-      let vTotal = 0;
       if (loans.length === 0) {
-        c.status = 'active';
+        c.status  = 'active';
         c._vTotal = 0;
       } else {
-        const totals = FinanceEngine.calculateTotals(loans);
+        const totals   = FinanceEngine.calculateTotals(loans);
         let hasOverdue = false;
-        loans.forEach(e => {
-          if (InterestService.isOverdue(e)) hasOverdue = true;
-        });
+        loans.forEach(e => { if (InterestService.isOverdue(e)) hasOverdue = true; });
         if (totals.netPayable <= 0) c.status = 'paid';
-        else if (hasOverdue) c.status = 'overdue';
-        else c.status = 'active';
+        else if (hasOverdue)        c.status = 'overdue';
+        else                        c.status = 'active';
         c._vTotal = totals.netPayable;
       }
     });
@@ -131,69 +139,128 @@ const HomeScreen = (() => {
     return all;
   }
 
+  /* ── village state helpers ───────────────────────────────────── */
+  function _ensureVillage(village) {
+    if (!_villageState[village]) {
+      _villageState[village] = { expanded: false, query: '', timer: null };
+    }
+  }
+
+  function _safeId(village) {
+    // Create a DOM-safe id from village name
+    return village.replace(/[^a-zA-Z0-9]/g, '_');
+  }
+
+  /* ── public: toggle a village group ─────────────────────────── */
+  function toggleVillage(village) {
+    _ensureVillage(village);
+    const state = _villageState[village];
+    state.expanded = !state.expanded;
+    if (!state.expanded) {
+      state.query = '';
+      clearTimeout(state.timer);
+    }
+    _renderEntriesContainer();
+    // Focus search if expanded
+    if (state.expanded) {
+      setTimeout(() => {
+        const input = document.getElementById(`vSearch_${_safeId(village)}`);
+        if (input) input.focus();
+      }, 50);
+    }
+  }
+
+  /* ── public: village search input handler ────────────────────── */
+  function onVillageSearch(village, value) {
+    _ensureVillage(village);
+    const state = _villageState[village];
+    clearTimeout(state.timer);
+    state.timer = setTimeout(() => {
+      state.query = value;
+      _renderEntriesContainer();
+      // Restore focus after re-render
+      setTimeout(() => {
+        const input = document.getElementById(`vSearch_${_safeId(village)}`);
+        if (input) {
+          input.focus();
+          const len = input.value.length;
+          input.setSelectionRange(len, len);
+        }
+      }, 20);
+    }, 300);
+  }
+
+  /* ── main list loading ───────────────────────────────────────── */
   function _loadCustomerCards() {
     const container = document.getElementById('entriesContainer');
     if (!container) return;
 
     const allCustomers = _getComputedCustomers();
     let activeCnt = 0, overdueCnt = 0, paidCnt = 0;
-
     allCustomers.forEach(c => {
-      if (c.status === 'active') activeCnt++;
+      if (c.status === 'active')       activeCnt++;
       else if (c.status === 'overdue') overdueCnt++;
-      else if (c.status === 'paid') paidCnt++;
+      else if (c.status === 'paid')    paidCnt++;
     });
 
     const q = (document.getElementById('searchInput')?.value || '').trim().toLowerCase();
     let activeList = allCustomers;
-    
-    // Filter by search query
+
+    // Global search filter
     if (q) {
-      activeList = activeList.filter(c => 
+      activeList = activeList.filter(c =>
         c.name.toLowerCase().includes(q) ||
         c.phone.includes(q) ||
         (c.address || '').toLowerCase().includes(q)
       );
     }
 
-    // Update Filter Tabs dynamically with Counts
-    const tabAll = document.getElementById('tab-all');
-    const tabActive = document.getElementById('tab-active');
+    // Update filter tab counts
+    const tabAll     = document.getElementById('tab-all');
+    const tabActive  = document.getElementById('tab-active');
     const tabOverdue = document.getElementById('tab-overdue');
-    const tabPaid = document.getElementById('tab-paid');
-    
-    if (tabAll) tabAll.innerHTML = `All (${allCustomers.length})`;
-    if (tabActive) tabActive.innerHTML = `🟡 Active (${activeCnt})`;
+    const tabPaid    = document.getElementById('tab-paid');
+    if (tabAll)     tabAll.innerHTML     = `All (${allCustomers.length})`;
+    if (tabActive)  tabActive.innerHTML  = `🟡 Active (${activeCnt})`;
     if (tabOverdue) tabOverdue.innerHTML = `🔴 Overdue (${overdueCnt})`;
-    if (tabPaid) tabPaid.innerHTML = `🟢 Paid (${paidCnt})`;
+    if (tabPaid)    tabPaid.innerHTML    = `🟢 Paid (${paidCnt})`;
 
-    // Filter by status tab
+    // Status tab filter
     if (_currentFilter !== 'all') {
       activeList = activeList.filter(c => c.status === _currentFilter);
     }
 
-    if (activeList.length === 0) {
-      if (_currentFilter === 'paid') {
-        container.innerHTML = `<div class="empty-state">
-          <div class="empty-icon">🟢</div>
-          <div class="empty-title">No Paid Customers Yet</div>
-          <div class="empty-sub">Customers who have fully settled will appear here.</div>
-        </div>`;
-      } else {
-        container.innerHTML = `<div class="empty-state">
-          <div class="empty-icon">📒</div>
-          <div class="empty-title">No customers found</div>
-          <div class="empty-sub">Tap the + button to add a new loan.</div>
-        </div>`;
-      }
+    // Store filtered list for grouped rendering
+    _filteredList = activeList;
+    _renderEntriesContainer();
+  }
+
+  // Holds the current filtered+status-filtered customer list
+  let _filteredList = [];
+
+  function _renderEntriesContainer() {
+    const container = document.getElementById('entriesContainer');
+    if (!container) return;
+
+    if (_filteredList.length === 0) {
+      const emptyIcon  = _currentFilter === 'paid' ? '🟢' : '📒';
+      const emptyTitle = _currentFilter === 'paid' ? 'No Paid Customers Yet' : 'No customers found';
+      const emptySub   = _currentFilter === 'paid'
+        ? 'Customers who have fully settled will appear here.'
+        : 'Tap the + button to add a new loan.';
+      container.innerHTML = `<div class="empty-state">
+        <div class="empty-icon">${emptyIcon}</div>
+        <div class="empty-title">${emptyTitle}</div>
+        <div class="empty-sub">${emptySub}</div>
+      </div>`;
       return;
     }
 
     const isWide = window.innerWidth >= 600;
 
-    // Group customers by Village / Address
+    // Group by village
     const grouped = {};
-    activeList.forEach(c => {
+    _filteredList.forEach(c => {
       const village = (c.address || 'Unknown Region').trim();
       if (!grouped[village]) grouped[village] = [];
       grouped[village].push(c);
@@ -204,32 +271,94 @@ const HomeScreen = (() => {
     );
 
     let html = '';
+
     sortedVillages.forEach(village => {
+      _ensureVillage(village);
+      const state      = _villageState[village];
+      const isExpanded = state.expanded;
       const vCustomers = grouped[village];
-      // Total balance for this village
+      const safeId     = _safeId(village);
+
+      // Sort alphabetically (A-Z) by customer name
+      vCustomers.sort((a, b) => 
+        (a.name || '').toLowerCase().localeCompare((b.name || '').toLowerCase())
+      );
+
+      // Village-level search filter (only when expanded)
+      let visible = vCustomers;
+      if (isExpanded && state.query) {
+        const vq = state.query.toLowerCase();
+        visible = vCustomers.filter(c =>
+          c.name.toLowerCase().includes(vq) ||
+          (c.phone || '').includes(vq)
+        );
+      }
+
+      // Slice to 3 when collapsed
+      const displayed = isExpanded ? visible : vCustomers.slice(0, 3);
+
       let vTotal = 0;
       vCustomers.forEach(c => { vTotal += c._vTotal; });
 
       html += `
-        <div style="margin-bottom:24px;">
-          <!-- Village Header -->
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;
-                      border-bottom:1px solid var(--border);padding-bottom:8px;">
+        <div class="village-group" style="margin-bottom:24px;" data-village="${village}">
+
+          <!-- Village Header (clickable) -->
+          <div onclick="HomeScreen.toggleVillage('${village.replace(/'/g, "\\'")}')"
+               style="display:flex;align-items:center;justify-content:space-between;
+                      margin-bottom:12px;border-bottom:1px solid var(--border);
+                      padding-bottom:8px;cursor:pointer;user-select:none;">
             <div style="display:flex;align-items:center;gap:8px;">
               <span style="font-size:1.2rem;">📍</span>
               <span style="font-size:1.1rem;font-weight:700;color:var(--text-primary);">${village}</span>
               <span class="badge badge-accent" style="font-size:0.7rem;">${vCustomers.length}</span>
             </div>
-            <div style="font-size:0.85rem;color:var(--text-secondary);font-weight:600;">
-              Bal: ${InterestService.fmt(vTotal)}
+            <div style="display:flex;align-items:center;gap:10px;">
+              <div style="font-size:0.85rem;color:var(--text-secondary);font-weight:600;">
+                Bal: ${InterestService.fmt(vTotal)}
+              </div>
+              <span style="font-size:1rem;color:var(--gold);transition:transform 0.2s;"
+                    id="vIcon_${safeId}">${isExpanded ? '▲' : '▼'}</span>
             </div>
           </div>
-          <!-- Customer Cards -->
-          <div class="${isWide ? 'entries-grid' : ''}">
-            ${vCustomers.map((c, i) => {
-              return EntryCard.renderCustomerCard(c, c._loans, i);
-            }).join('')}
+
+          ${isExpanded ? `
+          <!-- Per-village search (only when expanded) -->
+          <div style="margin-bottom:12px;">
+            <input
+              id="vSearch_${safeId}"
+              type="text"
+              placeholder="🔍 Search in ${village}…"
+              value="${state.query.replace(/"/g, '&quot;')}"
+              oninput="HomeScreen.onVillageSearch('${village.replace(/'/g, "\\'")}', this.value)"
+              style="width:100%;box-sizing:border-box;padding:10px 14px;border-radius:10px;
+                     border:1px solid var(--border);background:var(--bg-card2);
+                     color:var(--text-primary);font-size:0.9rem;font-family:var(--font-main);
+                     outline:none;"
+            />
           </div>
+          ` : ''}
+
+          <!-- Customer cards -->
+          <div class="${isWide ? 'entries-grid' : ''}">
+            ${displayed.length === 0 && isExpanded
+              ? `<div class="empty-state" style="padding:16px 0;">
+                   <div class="empty-icon">📭</div>
+                   <div class="empty-title" style="font-size:1rem;">No customers found</div>
+                 </div>`
+              : displayed.map((c, i) => EntryCard.renderCustomerCard(c, c._loans, i)).join('')
+            }
+          </div>
+
+          ${!isExpanded && vCustomers.length > 3 ? `
+          <!-- "Show more" hint -->
+          <div onclick="HomeScreen.toggleVillage('${village.replace(/'/g, "\\'")}')"
+               style="text-align:center;padding:8px;font-size:0.82rem;
+                      color:var(--text-secondary);cursor:pointer;
+                      border-top:1px solid var(--border);margin-top:8px;">
+            📌 Showing 3 of ${vCustomers.length} — <span style="color:var(--gold);font-weight:600;">Tap to see all</span>
+          </div>
+          ` : ''}
         </div>
       `;
     });
@@ -237,14 +366,17 @@ const HomeScreen = (() => {
     requestAnimationFrame(() => { container.innerHTML = html; });
   }
 
+  /* ── global search ───────────────────────────────────────────── */
   function onSearch() {
     clearTimeout(_searchTimer);
-    _searchTimer = setTimeout(() => setFilter(_currentFilter), 300);
+    _searchTimer = setTimeout(() => {
+      _computedCustomers = null;
+      setFilter(_currentFilter);
+    }, 300);
   }
 
-  /* ── Panchang Helpers ── */
+  /* ── Panchang helpers ────────────────────────────────────────── */
   function _getPanchangText() {
-    const todayStr = new Date().toISOString().split('T')[0];
     const manualData = localStorage.getItem('manualPanchang');
     if (manualData) {
       try {
@@ -255,7 +387,7 @@ const HomeScreen = (() => {
     const samvat    = TithiService.getSamvatDisplay(new Date());
     const tithiStr  = TithiService.get(new Date());
     const isLoading = tithiStr === 'लोड हो रहा है...';
-    const badge = isLoading
+    const badge     = isLoading
       ? `<span style="font-size:0.75rem;color:var(--text-muted);">⏳</span>`
       : `<span style="font-size:0.75rem;color:var(--success);">(Auto)</span>`;
     return `${samvat} | ${tithiStr} ${badge}`;
@@ -286,5 +418,13 @@ const HomeScreen = (() => {
     }, 150);
   }
 
-  return { render, setFilter, onSearch, toggleManualHome, openPanchangEditor };
+  return {
+    render,
+    setFilter,
+    onSearch,
+    toggleManualHome,
+    openPanchangEditor,
+    toggleVillage,
+    onVillageSearch
+  };
 })();
