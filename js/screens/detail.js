@@ -900,11 +900,90 @@ const DetailScreen = (() => {
   function handlePrint(id) {
     const txn = _transactions.find(t => t.id === id);
     if (!txn) return;
-    Toast.show(`🖨️ Printing ${txn.type.toUpperCase()} of ₹${txn.amount}...`);
+
+    const entry = txn.original;
+    const rate = txn.rate;
+    const isJama = txn.type === 'jama';
+    const resData = (entry.status === 'closed') 
+      ? { total: entry.finalTotal || entry.total || 0, interest: entry.finalInterest || entry.interest || 0, days: entry.finalDays || entry.days || 0 }
+      : FinanceEngine.calculateEntry(entry, new Date());
+
+    const customer = DB.getCustomer(_customerId) || {};
+    const shop = DB.getShop() || {};
+    
+    let container = document.getElementById('printInvoiceContainer');
+    if (!container) {
+      container = document.createElement('div');
+      container.id = 'printInvoiceContainer';
+      document.body.appendChild(container);
+    }
+    
+    container.innerHTML = `
+      <div class="print-invoice">
+        <div class="print-header">
+           <div class="page-number">Page 1</div>
+           <div class="shop-title">${shop.name || 'Jain Finance'}</div>
+           <div class="shop-sub">${shop.address || ''} | Ph: ${shop.phone || '—'}</div>
+           <div class="invoice-title">${isJama ? 'PAYMENT RECEIPT' : 'LOAN INVOICE'}</div>
+        </div>
+        
+        <div class="print-customer">
+           <div class="cust-row"><strong>Customer:</strong> ${customer.name || '—'}</div>
+           <div class="cust-row"><strong>Phone:</strong> ${customer.phone || '—'}</div>
+           <div class="cust-row"><strong>City/Village:</strong> ${customer.address || '—'}</div>
+        </div>
+
+        <table class="print-table">
+           <thead>
+             <tr>
+               <th>Date</th>
+               <th>Rate & Type</th>
+               <th>Duration</th>
+               <th style="text-align:right">Principal</th>
+               <th style="text-align:right">Interest</th>
+               <th style="text-align:right">Total Due</th>
+             </tr>
+           </thead>
+           <tbody>
+             <tr>
+               <td>${new Date(txn.date).toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric'})}</td>
+               <td>${(entry.interestType || 'compound') === 'simple' ? 'Simple' : 'Compound'} @ ${rate}%/mo</td>
+               <td>${resData.days} days</td>
+               <td style="text-align:right">${InterestService.fmt(txn.amount)}</td>
+               <td style="text-align:right">${InterestService.fmt(resData.interest)}</td>
+               <td style="text-align:right">${InterestService.fmt(resData.total)}</td>
+             </tr>
+           </tbody>
+        </table>
+
+        <div class="print-summary">
+           <table class="summary-table">
+             <tr><td>Net Principal:</td><td class="amt">${InterestService.fmt(txn.amount)}</td></tr>
+             <tr><td>Total Interest:</td><td class="amt">${InterestService.fmt(resData.interest)}</td></tr>
+             <tr class="total-row"><td>Total Payable:</td><td class="amt">${InterestService.fmt(resData.total)}</td></tr>
+           </table>
+        </div>
+
+        <div class="print-footer">
+           <div class="sig-box">Customer Signature<br><br><br>____________________</div>
+           <div class="sig-box right">Authorised Signature<br><br><br>____________________</div>
+           <div class="thank-you">Thank you for your trust.</div>
+        </div>
+      </div>
+    `;
+
+    Toast.show(`🖨️ Opening print dialog...`);
     setTimeout(() => window.print(), 500);
   }
 
   function viewDetails(id) {
+    const txn = _transactions.find(t => t.id === id);
+    if (!txn) { Toast.show('Entry not found'); return; }
+    
+    const entry = txn.original;
+    const rate = txn.rate;
+    const intType = entry.interestType || 'compound';
+    
     let resData;
     if (entry.status === 'closed') {
       resData = {
@@ -926,79 +1005,61 @@ const DetailScreen = (() => {
 
     const todayTithi = typeof TithiService !== 'undefined' ? TithiService.getShort(new Date()) : '';
     const startTithi = typeof TithiService !== 'undefined' ? TithiService.getShort(new Date(txn.date)) : '';
+    
+    const customer = DB.getCustomer(_customerId) || {};
 
     if (!document.getElementById('viewDetailsModal')) {
       const overlay = document.createElement('div');
       overlay.id = 'viewDetailsModal';
       overlay.className = 'modal-overlay hidden';
       overlay.style.zIndex = '9999';
-      overlay.innerHTML = `
-        <div class="modal-box card" style="max-width:340px; width:90%;">
-           <div style="text-align:center; margin-bottom:16px;">
-             <div style="font-size:2rem;">👁️</div>
-             <div class="modal-title" style="color:var(--text-primary);">Entry Details</div>
-           </div>
-           <div style="background:var(--bg-card); border:1px solid var(--border); padding:14px; border-radius:10px; font-size:0.9rem; margin-bottom:16px;">
-             <div style="display:flex; justify-content:space-between; margin-bottom:8px;"><span style="color:var(--text-secondary);">Status:</span><span id="vdStatus" style="font-weight:700;"></span></div>
-             <div style="display:flex; justify-content:space-between; margin-bottom:8px;"><span style="color:var(--text-secondary);">Type:</span><span id="vdType" style="font-weight:700;"></span></div>
-             <div style="display:flex; justify-content:space-between; margin-bottom:8px;"><span style="color:var(--text-secondary);">Principal:</span><span id="vdPrincipal" style="font-weight:700;"></span></div>
-             <div style="display:flex; justify-content:space-between; margin-bottom:8px;"><span style="color:var(--text-secondary);">Rate:</span><span id="vdRate" style="font-weight:700;"></span></div>
-             <div style="display:flex; justify-content:space-between; margin-bottom:8px;"><span style="color:var(--text-secondary);">Duration:</span><span id="vdDays" style="font-weight:700;"></span></div>
-             <div id="vdTithiRow" style="display:flex; justify-content:space-between; margin-bottom:8px;"><span style="color:var(--text-secondary);">Tithi:</span><span id="vdTithi" style="font-weight:700; color:#ca8a04;"></span></div>
-             <div style="display:flex; justify-content:space-between; margin-bottom:8px;"><span style="color:var(--text-secondary);">Int. Type:</span><span id="vdIntType" style="font-weight:700;"></span></div>
-             <div style="display:flex; justify-content:space-between; margin-bottom:8px;"><span style="color:var(--text-secondary);">Formula:</span><span id="vdFormula" style="font-family:monospace; font-size:0.8rem; text-align:right;"></span></div>
-             <div style="display:flex; justify-content:space-between; margin-bottom:8px;"><span style="color:var(--text-secondary);">Interest:</span><span id="vdInterest" style="color:var(--warn); font-weight:700;"></span></div>
-             <div style="display:flex; justify-content:space-between; margin-top:12px; padding-top:12px; border-top:1px dashed var(--border);"><span style="font-weight:700;">Total:</span><span id="vdTotal" style="color:var(--accent); font-weight:800; font-size:1.2rem;"></span></div>
-           </div>
-           <button class="btn btn-secondary btn-full" onclick="document.getElementById('viewDetailsModal').classList.add('hidden')">Close</button>
-        </div>
-      `;
       document.body.appendChild(overlay);
     }
+    
+    const overlay = document.getElementById('viewDetailsModal');
+    overlay.innerHTML = `
+      <div class="modal-box card" style="max-width:360px; width:90%; padding:24px; padding-top:16px;">
+         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+           <div class="modal-title" style="margin:0; font-size:1.2rem; color:var(--accent);">Entry Details</div>
+           <button style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:var(--text-muted);" onclick="document.getElementById('viewDetailsModal').classList.add('hidden')">&times;</button>
+         </div>
+         
+         <!-- 👤 Customer Info -->
+         <div style="background:var(--bg-card2); border:1px solid var(--border); padding:12px; border-radius:12px; margin-bottom:12px;">
+           <div style="font-size:0.7rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin-bottom:6px;">👤 Customer Info</div>
+           <div style="font-weight:700; color:var(--text-primary); font-size:0.95rem;">${customer.name || '—'}</div>
+           <div style="font-size:0.8rem; color:var(--text-secondary); margin-top:2px;">📱 ${customer.phone || '—'}   |   📍 ${customer.address || '—'}</div>
+         </div>
 
-    // Prepare display data based on live calc or frozen
-    const intType          = entry.interestType || 'compound';
-    const annualRate       = resData.annualRate;
-    const compM            = entry.compoundingMonths || 1;
-    const n                = 12 / compM;
-    const compLabel        = resData.compoundingLabel;
-    const tYears           = resData.timeYears;
-    const mode             = resData.mode;
-    const growthFactor     = entry.principal > 0 ? (total / entry.principal).toFixed(4) : '—';
+         <!-- 💰 Loan Info -->
+         <div style="background:var(--bg-card2); border:1px solid var(--border); padding:12px; border-radius:12px; margin-bottom:12px;">
+           <div style="font-size:0.7rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin-bottom:6px;">💰 Loan Info</div>
+           <div style="display:flex; justify-content:space-between; font-size:0.85rem; margin-bottom:4px;"><span style="color:var(--text-secondary)">Amount:</span><span style="font-weight:700; color:var(--text-primary)">${InterestService.fmt(txn.amount)}</span></div>
+           <div style="display:flex; justify-content:space-between; font-size:0.85rem; margin-bottom:4px;"><span style="color:var(--text-secondary)">Date:</span><span style="font-weight:700; color:var(--text-primary)">${new Date(txn.date).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' })}</span></div>
+           <div style="display:flex; justify-content:space-between; font-size:0.85rem; margin-bottom:4px;"><span style="color:var(--text-secondary)">Rate:</span><span style="font-weight:700; color:var(--text-primary)">${rate}% / mo</span></div>
+           <div style="display:flex; justify-content:space-between; font-size:0.85rem;"><span style="color:var(--text-secondary)">Type:</span><span style="font-weight:700; color:var(--text-primary)">${intType === 'simple' ? 'Simple' : `Compound <span style="font-size:0.7rem;color:var(--text-muted);">(${resData.compoundingLabel})</span>`}</span></div>
+         </div>
 
-    let formulaHtml;
-    if (intType === 'compound') {
-      formulaHtml = `P × (1 + ${annualRate}%/${n})^(${n}×${Number(tYears).toFixed(4)}) = ${growthFactor}×`;
-    } else {
-      formulaHtml = `P × (1 + ${annualRate}% × ${Number(tYears).toFixed(4)} yrs)`;
-    }
+         <!-- 📅 Time Info -->
+         <div style="background:var(--bg-card2); border:1px solid var(--border); padding:12px; border-radius:12px; margin-bottom:12px;">
+           <div style="font-size:0.7rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin-bottom:6px;">📅 Time Info</div>
+           <div style="display:flex; justify-content:space-between; font-size:0.85rem; margin-bottom:4px;"><span style="color:var(--text-secondary)">Duration:</span><span style="font-weight:700; color:var(--text-primary)">${days} days (${Number(resData.timeYears ? resData.timeYears * 12 : 0).toFixed(1)} mo)</span></div>
+           ${(_mode === 'tithi' && startTithi) ? `<div style="display:flex; justify-content:space-between; font-size:0.85rem;"><span style="color:var(--text-secondary)">Tithi:</span><span style="font-weight:700; color:var(--gold)">${startTithi} → ${todayTithi}</span></div>` : ''}
+         </div>
 
-    const stateHtml = entry.status === 'closed' 
-       ? `<span style="color:var(--text-secondary)"><span style="font-size:1.1rem">🔒</span> Settled Final</span>` 
-       : `<span style="color:var(--warn)"><span style="font-size:1.1rem">⚡</span> Live Active</span>`;
-
-    document.getElementById('vdStatus').innerHTML = stateHtml;
-
-    document.getElementById('vdType').innerText = txn.type.toUpperCase();
-    document.getElementById('vdType').style.color = txn.type === 'jama' ? 'var(--success)' : 'var(--danger)';
-    document.getElementById('vdPrincipal').innerText = InterestService.fmt(txn.amount);
-    document.getElementById('vdRate').innerText = `${rate}%/mo → ${annualRate}%/yr`;
-    document.getElementById('vdDays').innerText = `${days} days (${Number(tMonths).toFixed(2)} mo / ${Number(tYears).toFixed(4)} yrs)`;
-    document.getElementById('vdIntType').innerText = intType === 'simple' ? '📉 Simple' : `📈 Compound — ${compLabel} (${n}×/yr) — ${mode}`;
-    document.getElementById('vdFormula').innerHTML = formulaHtml;
-    document.getElementById('vdInterest').innerText = InterestService.fmt(interest);
-    document.getElementById('vdTotal').innerText = InterestService.fmt(total);
-
-    const tithiRow = document.getElementById('vdTithiRow');
-    const tithiEl = document.getElementById('vdTithi');
-    if (_mode === 'tithi' && startTithi) {
-      tithiRow.style.display = 'flex';
-      tithiEl.innerText = startTithi + ' → ' + todayTithi;
-    } else {
-      tithiRow.style.display = 'none';
-    }
-
-    document.getElementById('viewDetailsModal').classList.remove('hidden');
+         <!-- 📊 Summary -->
+         <div style="background:linear-gradient(135deg, var(--bg-card), var(--bg-card2)); border:1px solid var(--accent); padding:14px; border-radius:12px; margin-bottom:8px; box-shadow:0 4px 12px rgba(30,58,138,0.06);">
+           <div style="font-size:0.7rem; font-weight:700; color:var(--accent); text-transform:uppercase; margin-bottom:8px;">📊 Summary</div>
+           <div style="display:flex; justify-content:space-between; font-size:0.85rem; margin-bottom:6px;"><span style="color:var(--text-secondary)">Interest till today:</span><span style="font-weight:700; color:var(--warn)">+ ${InterestService.fmt(interest)}</span></div>
+           <div style="display:flex; justify-content:space-between; font-size:0.85rem; margin-bottom:10px;"><span style="color:var(--text-secondary)">Status:</span><span style="font-weight:700;">${entry.status === 'closed' ? '<span style="color:var(--success)">🔒 Closed</span>' : '<span style="color:var(--warn)">⚡ Active</span>'}</span></div>
+           <div style="display:flex; justify-content:space-between; padding-top:10px; border-top:1px dashed var(--border);">
+             <span style="font-weight:700; color:var(--text-primary)">Total Payable:</span><span style="color:var(--accent); font-weight:800; font-size:1.2rem;">${InterestService.fmt(total)}</span>
+           </div>
+         </div>
+      </div>
+    `;
+    
+    overlay.classList.remove('hidden');
   }
 
   // Legacy route handler
