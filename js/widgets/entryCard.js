@@ -117,21 +117,32 @@ const EntryCard = (() => {
     else statusHtml = `<span class="badge badge-warn">Active</span>`;
 
     return `
-      <div class="card ${cardClass} entry-card-enter" style="animation-delay:${index * 0.06}s; cursor:pointer;"
+      <div class="card ${cardClass} entry-card-enter" style="animation-delay:${index * 0.06}s; cursor:pointer; position:relative;"
            onclick="App.navigate('customer', '${customer.customerId}')">
         <!-- TOP ROW: Avatar + Info -->
         <div style="display:flex;align-items:center;margin-bottom:14px;">
           ${avatarHtml}
-          <div style="min-width:0;margin-left:12px;">
+          <div style="min-width:0;margin-left:12px;flex:1;">
             <div style="color:var(--text-primary);font-weight:700;font-size:1.05rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
               ${customer.name}
             </div>
             <div style="color:var(--text-secondary);font-size:0.85rem;">
-              ${customer.phone || '—'}
+              ${customer.phone || '\u2014'}
             </div>
           </div>
-          <div style="margin-left:auto;">
-             ${statusHtml}
+          <div style="display:flex;align-items:center;gap:8px;">
+            ${statusHtml}
+            <button
+              onclick="event.stopPropagation(); EntryCard.openHisab('${customer.customerId}', '${(customer.name||'').replace(/'/g,'\\&apos;')}', '${(customer.phone||'')}', '${(customer.address||'').replace(/'/g,'\\&apos;')}')"
+              title="Full Hisab"
+              style="background:rgba(124,58,237,0.15);border:1px solid rgba(124,58,237,0.3);
+                     border-radius:8px;width:32px;height:32px;display:flex;align-items:center;
+                     justify-content:center;font-size:14px;cursor:pointer;flex-shrink:0;
+                     transition:all 0.2s;"
+              onmouseover="this.style.background='rgba(124,58,237,0.3)'"
+              onmouseout="this.style.background='rgba(124,58,237,0.15)'">
+              \uD83D\uDC41\uFE0F
+            </button>
           </div>
         </div>
 
@@ -140,7 +151,7 @@ const EntryCard = (() => {
           Total Loans: ${loans.length}
         </div>
         <div style="color:var(--gold);font-size:1.25rem;font-weight:700;">
-          ${allPaid ? '✅ ₹0' : InterestService.fmt(totalBalance)}
+          ${allPaid ? '\u2705 \u20b90' : InterestService.fmt(totalBalance)}
         </div>
 
         <!-- Progress (if any) -->
@@ -152,5 +163,23 @@ const EntryCard = (() => {
       </div>`;
   }
 
-  return { render, renderCustomerCard };
+  function openHisab(tithiCustomerId, name, phone, address) {
+    if (typeof JewelleryDataService === 'undefined' || typeof HisabModal === 'undefined') {
+      App.navigate('customer', tithiCustomerId);
+      return;
+    }
+    JewelleryDataService.syncFromTithi();
+    const master = JewelleryDataService.findInMaster(name, phone);
+    if (master) {
+      HisabModal.open(master.id);
+    } else {
+      const mc = JewelleryDataService.upsertMaster({
+        name, mobile: phone, village: address,
+        moduleId: 'tithi', sourceId: tithiCustomerId,
+      });
+      HisabModal.open(mc.id);
+    }
+  }
+
+  return { render, renderCustomerCard, openHisab };
 })();
