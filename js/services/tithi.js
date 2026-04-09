@@ -377,6 +377,33 @@ const TithiService = (() => {
     return { idx, sunLon: sun, moonLon: moon };
   }
 
+  /* ── CURRENT TIME JD ───────────────────────── */
+  function _currentJD(date) {
+    return date.getTime() / 86400000 + 2440587.5;
+  }
+
+  /* ── FIND TITHI END TIME (binary search) ───── */
+  function _findTithiEnd(jdStart, currentTithi) {
+    let low = jdStart;
+    let high = jdStart + 1;
+
+    while (high - low > 1/1440) { // ~1 min accuracy
+      let mid = (low + high) / 2;
+      let t = _tithiFromJD(mid).idx;
+
+      if (t === currentTithi) low = mid;
+      else high = mid;
+    }
+
+    return high;
+  }
+
+  /* ── FORMAT TIME FROM JD (IST) ─────────────── */
+  function _jdToIST(jd) {
+    const utc = new Date((jd - 2440587.5) * 86400000);
+    return utc.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' });
+  }
+
   /* ── Sunrise JD for date+location (Meeus Ch.15) ────────────── */
   function _sunriseJD(date, lat, lon) {
     const y = date.getFullYear(), m = date.getMonth()+1, day = date.getDate();
@@ -402,14 +429,42 @@ const TithiService = (() => {
     return _jdn(y, m, day) + sunriseUT/24;
   }
 
-  /* ── Lunar month (Purnimanta) from sun longitude at new moon ── */
-  function _lunarMonth(sunLon, tithiIdx) {
-    // Approximate sun longitude at the new moon that started this lunar cycle.
-    // Sun moves ~0.9856°/day; each tithi ≈ 29.53/30 days.
-    const daysBack   = (tithiIdx - 1) * (29.53059 / 30);
-    const sLonNewMoon = ((sunLon - daysBack * 0.9856) % 360 + 360) % 360;
-    // Solar sign index 0=Aries(Chaitra) … 11=Pisces(Phalguna)
-    return Math.floor(sLonNewMoon / 30) % 12;
+  /* ── Lunar month (Purnimanta) via backward new-moon search ── */
+  function _lunarMonth(sunLonVal, tithiIdx, jd) {
+
+    // Step 1: Walk backward to find nearest New Moon (Amavasya)
+    let bestJD = jd;
+    let minDiff = 360;
+
+    for (let i = 0; i < 32; i++) {
+      const checkJD = jd - i;
+      const sun  = _sunLon(checkJD);
+      const moon = _moonLon(checkJD);
+      const diff = ((moon - sun + 360) % 360);
+
+      if (diff < minDiff) {
+        minDiff = diff;
+        bestJD = checkJD;
+      } else if (diff > minDiff + 30) {
+        break;
+      }
+    }
+
+    // Step 2: Convert new-moon JD to Gregorian date
+    const nmDate = new Date((bestJD - 2440587.5) * 86400000);
+    const nmMonth = nmDate.getMonth(); // 0-11
+
+    // Step 3: Map Gregorian month of new moon → Hindu Maas (Purnimanta)
+    // New moon in Mar/Apr → Chaitra, Apr/May → Vaishakh, etc.
+    // Purnimanta: the month ENDS at Purnima, so the new moon that
+    // starts the Shukla paksha defines the month.
+    const GREG_TO_MAAS = [
+      /* Jan→ */ 10,  /* Feb→ */ 11, /* Mar→ */ 0,  /* Apr→ */ 1,
+      /* May→ */ 2,   /* Jun→ */ 3,  /* Jul→ */ 4,  /* Aug→ */ 5,
+      /* Sep→ */ 6,   /* Oct→ */ 7,  /* Nov→ */ 8,  /* Dec→ */ 9
+    ];
+
+    return GREG_TO_MAAS[nmMonth];
   }
 
   /* ── Vikram Samvat ─────────────────────────────────────────── */
@@ -464,21 +519,50 @@ const TithiService = (() => {
     // Get stored coordinates (default: Nagpur, central India)
     const coords = _getCoords();  // { lat, lon }
 
-    // ── 1. Sunrise JD for this date at user location ──────────
-    const srJD = _sunriseJD(d, coords.lat, coords.lon);
+    // ── 1. Sunrise JD for this date at user location (IST) ────
+    const istDate = new Date(d.toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
+    const srJD = _sunriseJD(istDate, coords.lat, coords.lon);
 
     // ── 2. tithi AT sunrise (the Panchang rule) ───────────────
     const { idx, sunLon } = _tithiFromJD(srJD);
-    const tithiIdx = idx;       // 1–30
+    const sunriseTithi = idx;
+
+    // current time tithi
+    const nowJD = _currentJD(d);
+    const currentTithi = _tithiFromJD(nowJD).idx;
+
+    // detect dual tithi
+    const nextTithi = currentTithi !== sunriseTithi ? currentTithi : null;
+
+    // end time
+    const endJD = _findTithiEnd(nowJD, currentTithi);
+    const endTime = _jdToIST(endJD);
+
+    // final tithi
+    const tithiIdx = sunriseTithi;
 
     // ── 3. Paksha & tithi name ────────────────────────────────
     const isKrishna = tithiIdx > 15;
-    const paksha    = isKrishna ? 'कृष्ण' : 'शुक्ल';
-    const tName     = isKrishna ? TITHI_NAMES_K[tithiIdx - 16] : TITHI_NAMES_S[tithiIdx - 1];
-    const tithiName = tName || '';
+    const paksha = isKrishna ? 'कृष्ण' : 'शुक्ल';
+
+    const name1 = isKrishna
+      ? TITHI_NAMES_K[tithiIdx - 16]
+      : TITHI_NAMES_S[tithiIdx - 1];
+
+    let tithiName = name1;
+
+    // if dual tithi
+    if (nextTithi) {
+      const isKrishna2 = nextTithi > 15;
+      const name2 = isKrishna2
+        ? TITHI_NAMES_K[nextTithi - 16]
+        : TITHI_NAMES_S[nextTithi - 1];
+
+      tithiName = `${name1} (1) / ${name2} (2)`;
+    }
 
     // ── 4. Lunar month (Purnimanta) ───────────────────────────
-    const maasIdx = _lunarMonth(sunLon, tithiIdx);
+    const maasIdx = _lunarMonth(sunLon, tithiIdx, srJD);
     const maas    = MAAS_ORDER[maasIdx];
 
     // ── 5. Vikram Samvat ──────────────────────────────────────
@@ -487,7 +571,15 @@ const TithiService = (() => {
     // ── 6. Festival ───────────────────────────────────────────
     const festival = _festival(maasIdx, tithiIdx);
 
-    return { tithiName, paksha, maas, samvat, festival, source: 'astro' };
+    return {
+      tithiName,
+      paksha,
+      maas,
+      samvat,
+      festival,
+      endTime,
+      source: 'astro'
+    };
   }
 
   /* ─── SYNC GETTER (public API stays synchronous) ─────────── */

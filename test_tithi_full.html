@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>TithiService Full Test Suite</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Courier New', monospace; background: #0a0a0a; color: #e0e0e0; padding: 20px; font-size: 13px; }
+    h1 { color: #00ff88; margin-bottom: 10px; }
+    h2 { color: #ffaa00; margin: 20px 0 8px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+    .pass { color: #00ff88; }
+    .fail { color: #ff4444; font-weight: bold; }
+    .warn { color: #ffaa00; }
+    .info { color: #88aaff; }
+    table { border-collapse: collapse; width: 100%; margin: 8px 0; }
+    th, td { border: 1px solid #333; padding: 4px 8px; text-align: left; }
+    th { background: #1a1a2e; color: #00ff88; }
+    tr:nth-child(even) { background: #111; }
+    #summary { background: #1a1a2e; padding: 15px; border-radius: 8px; margin: 20px 0; border: 2px solid #00ff88; }
+    pre { background: #111; padding: 8px; border-radius: 4px; overflow-x: auto; margin: 4px 0; }
+  </style>
+  <!-- Load app dependencies in order -->
+  <script>
+    // Stub out missing globals that tithi.js might reference
+    window.Toast = { show: function() {} };
+    // Minimal CSS vars for manual correction popup
+  </script>
+  <script src="js/models.js"></script>
+  <script src="js/services/tithi.js"></script>
+</head>
+<body>
+  <h1>🧪 TithiService — Full Test Suite</h1>
+  <div id="summary"></div>
+  <div id="results"></div>
+
+  <script>
+    const results = [];
+    let passed = 0, failed = 0, warnings = 0;
+
+    function log(category, status, message, detail = '') {
+      results.push({ category, status, message, detail });
+      if (status === 'PASS') passed++;
+      else if (status === 'FAIL') failed++;
+      else warnings++;
+    }
+
+    function assert(category, condition, msg, detail = '') {
+      if (condition) log(category, 'PASS', msg, detail);
+      else log(category, 'FAIL', msg, detail);
+    }
+
+    // ═══════════════════════════════════════════════════
+    // TEST 1: ALL METHODS EXIST
+    // ═══════════════════════════════════════════════════
+    const requiredMethods = [
+      'get', 'getShort', 'getFormatted', 'getSamvat', 'getSamvatDisplay',
+      'getMaasFromGregorian', 'formatDate', 'getMonthHtml', 'getMonthText',
+      'onUpdate', 'openManualCorrection', 'saveManualCorrection', 'clearManualCorrection',
+      'saveApiCredentials', 'saveApiCoords', 'getApiCredentials', 'getStoredCoords', 'isApiConfigured',
+      'getTotalTithis', 'KEY_DATES'
+    ];
+
+    requiredMethods.forEach(m => {
+      assert('Methods', typeof TithiService[m] !== 'undefined',
+        `TithiService.${m} exists`,
+        `Type: ${typeof TithiService[m]}`);
+    });
+
+    // ═══════════════════════════════════════════════════
+    // TEST 2: BASIC METHOD CALLS (no crash)
+    // ═══════════════════════════════════════════════════
+    const today = new Date();
+
+    try { const r = TithiService.get(today); assert('BasicCalls', r && r !== '---', 'get() returns value', r); }
+    catch(e) { log('BasicCalls', 'FAIL', 'get() crashed', e.message); }
+
+    try { const r = TithiService.getShort(today); assert('BasicCalls', r && r !== '---', 'getShort() returns value', r); }
+    catch(e) { log('BasicCalls', 'FAIL', 'getShort() crashed', e.message); }
+
+    try { const r = TithiService.getFormatted(today); assert('BasicCalls', !!r, 'getFormatted() returns value', r); }
+    catch(e) { log('BasicCalls', 'FAIL', 'getFormatted() crashed', e.message); }
+
+    try { const r = TithiService.getSamvat(today); assert('BasicCalls', r > 2000, 'getSamvat() returns valid year', r); }
+    catch(e) { log('BasicCalls', 'FAIL', 'getSamvat() crashed', e.message); }
+
+    try { const r = TithiService.getSamvatDisplay(today); assert('BasicCalls', r.includes('संवत'), 'getSamvatDisplay() has संवत', r); }
+    catch(e) { log('BasicCalls', 'FAIL', 'getSamvatDisplay() crashed', e.message); }
+
+    try { const r = TithiService.getMaasFromGregorian(today); assert('BasicCalls', !!r, 'getMaasFromGregorian() returns value', r); }
+    catch(e) { log('BasicCalls', 'FAIL', 'getMaasFromGregorian() crashed', e.message); }
+
+    try { const r = TithiService.formatDate(today); assert('BasicCalls', r.length > 5, 'formatDate() returns string', r); }
+    catch(e) { log('BasicCalls', 'FAIL', 'formatDate() crashed', e.message); }
+
+    try { const r = TithiService.getMonthHtml('चैत्र शुक्ल प्रतिपदा'); assert('BasicCalls', r.includes('tithi-chip'), 'getMonthHtml() returns HTML', r.substring(0,60)); }
+    catch(e) { log('BasicCalls', 'FAIL', 'getMonthHtml() crashed', e.message); }
+
+    try { const r = TithiService.getMonthText('चैत्र शुक्ल प्रतिपदा'); assert('BasicCalls', !!r, 'getMonthText() returns text', r); }
+    catch(e) { log('BasicCalls', 'FAIL', 'getMonthText() crashed', e.message); }
+
+    try { const r = TithiService.isApiConfigured(); assert('BasicCalls', typeof r === 'boolean', 'isApiConfigured() returns boolean', String(r)); }
+    catch(e) { log('BasicCalls', 'FAIL', 'isApiConfigured() crashed', e.message); }
+
+    try { const r = TithiService.getStoredCoords(); assert('BasicCalls', r.lat && r.lon, 'getStoredCoords() returns coords', JSON.stringify(r)); }
+    catch(e) { log('BasicCalls', 'FAIL', 'getStoredCoords() crashed', e.message); }
+
+    try { const r = TithiService.getApiCredentials(); assert('BasicCalls', typeof r === 'object', 'getApiCredentials() returns object', JSON.stringify(r)); }
+    catch(e) { log('BasicCalls', 'FAIL', 'getApiCredentials() crashed', e.message); }
+
+    try { const unsub = TithiService.onUpdate(() => {}); assert('BasicCalls', typeof unsub === 'function', 'onUpdate() returns unsubscribe fn'); unsub(); }
+    catch(e) { log('BasicCalls', 'FAIL', 'onUpdate() crashed', e.message); }
+
+    // ═══════════════════════════════════════════════════
+    // TEST 3: 12-MONTH SWEEP (Month Shift Detection)
+    // ═══════════════════════════════════════════════════
+    const VALID_MAAS = ['चैत्र','वैशाख','ज्येष्ठ','आषाढ़','श्रावण','भाद्रपद',
+                        'आश्विन','कार्तिक','मार्गशीर्ष','पौष','माघ','फाल्गुन'];
+    const VALID_PAKSHA = ['शुक्ल', 'कृष्ण'];
+    const VALID_TITHI = ['प्रतिपदा','द्वितीया','तृतीया','चतुर्थी','पंचमी',
+                         'षष्ठी','सप्तमी','अष्टमी','नवमी','दशमी',
+                         'एकादशी','द्वादशी','त्रयोदशी','चतुर्दशी','पूर्णिमा','अमावस्या'];
+
+    // Expected approximate maas for mid-month dates (±1 maas is acceptable)
+    const MONTH_EXPECTED = {
+      0:  ['पौष', 'माघ'],           // Jan 15
+      1:  ['माघ', 'फाल्गुन'],       // Feb 15
+      2:  ['फाल्गुन', 'चैत्र'],     // Mar 15
+      3:  ['चैत्र', 'वैशाख'],       // Apr 15
+      4:  ['वैशाख', 'ज्येष्ठ'],     // May 15
+      5:  ['ज्येष्ठ', 'आषाढ़'],     // Jun 15
+      6:  ['आषाढ़', 'श्रावण'],      // Jul 15
+      7:  ['श्रावण', 'भाद्रपद'],    // Aug 15
+      8:  ['भाद्रपद', 'आश्विन'],   // Sep 15
+      9:  ['आश्विन', 'कार्तिक'],   // Oct 15
+      10: ['कार्तिक', 'मार्गशीर्ष'], // Nov 15
+      11: ['मार्गशीर्ष', 'पौष'],    // Dec 15
+    };
+
+    const monthSweepData = [];
+    for (let m = 0; m < 12; m++) {
+      const d = new Date(2026, m, 15, 12, 0, 0);
+      const tithiStr = TithiService.get(d);
+      const samvat = TithiService.getSamvat(d);
+      const parts = tithiStr.split(' ');
+      const maas = parts[0] || '';
+      const paksha = parts[1] || '';
+      
+      const expectedMaas = MONTH_EXPECTED[m];
+      const maasOk = expectedMaas.includes(maas);
+      const pakshaOk = VALID_PAKSHA.includes(paksha);
+
+      monthSweepData.push({ month: m+1, date: d.toDateString(), maas, paksha, tithiStr, samvat, maasOk, pakshaOk });
+
+      if (maasOk) {
+        log('MonthSweep', 'PASS', `Month ${m+1} (${d.toDateString()}) → ${maas}`, `Expected: ${expectedMaas.join('/')}`);
+      } else {
+        log('MonthSweep', 'FAIL', `Month ${m+1} (${d.toDateString()}) → ${maas} ❌`, `Expected: ${expectedMaas.join('/')}, Got full: ${tithiStr}`);
+      }
+
+      assert('MonthSweep', pakshaOk, `Month ${m+1} paksha is valid: ${paksha}`);
+    }
+
+    // ═══════════════════════════════════════════════════
+    // TEST 4: CONSISTENCY (same date = same result)
+    // ═══════════════════════════════════════════════════
+    const consistencyDate = new Date(2026, 3, 10, 14, 30, 0);
+    const r1 = TithiService.get(consistencyDate);
+    const r2 = TithiService.get(consistencyDate);
+    const r3 = TithiService.get(consistencyDate);
+    assert('Consistency', r1 === r2 && r2 === r3, 'Same date returns same result 3x', `"${r1}"`);
+
+    const s1 = TithiService.getSamvat(consistencyDate);
+    const s2 = TithiService.getSamvat(consistencyDate);
+    assert('Consistency', s1 === s2, 'getSamvat consistent', `${s1} === ${s2}`);
+
+    // ═══════════════════════════════════════════════════
+    // TEST 5: EDGE CASES (Amavasya / Purnima transitions)
+    // ═══════════════════════════════════════════════════
+    // Test dates near known astronomical events in 2026
+    const edgeDates = [
+      // Near full moons (Purnima) 2026
+      { date: new Date(2026, 0, 13), label: 'Near Purnima Jan 2026' },
+      { date: new Date(2026, 1, 12), label: 'Near Purnima Feb 2026' },
+      { date: new Date(2026, 2, 14), label: 'Near Purnima Mar 2026' },
+      // Near new moons (Amavasya) 2026
+      { date: new Date(2026, 0, 29), label: 'Near Amavasya Jan 2026' },
+      { date: new Date(2026, 1, 27), label: 'Near Amavasya Feb 2026' },
+      { date: new Date(2026, 2, 29), label: 'Near Amavasya Mar 2026' },
+    ];
+
+    edgeDates.forEach(({ date, label }) => {
+      try {
+        const r = TithiService.get(date);
+        const valid = r && r !== '---' && !r.includes('undefined');
+        assert('EdgeCases', valid, `${label}: ${r}`, date.toDateString());
+      } catch(e) {
+        log('EdgeCases', 'FAIL', `${label} CRASHED`, e.message);
+      }
+    });
+
+    // ═══════════════════════════════════════════════════
+    // TEST 6: SAMVAT VALIDATION
+    // ═══════════════════════════════════════════════════
+    // Vikram Samvat 2083 for most of 2026 (after Chaitra Shukla 1)
+    const samvatTests = [
+      { date: new Date(2026, 0, 15), expected: [2082, 2083], label: 'Jan 2026' },
+      { date: new Date(2026, 1, 15), expected: [2082, 2083], label: 'Feb 2026' },
+      { date: new Date(2026, 5, 15), expected: [2083],       label: 'Jun 2026' },
+      { date: new Date(2026, 9, 15), expected: [2083],       label: 'Oct 2026' },
+      { date: new Date(2026, 11, 15), expected: [2083],      label: 'Dec 2026' },
+    ];
+
+    samvatTests.forEach(({ date, expected, label }) => {
+      const s = TithiService.getSamvat(date);
+      const ok = expected.includes(s);
+      assert('Samvat', ok, `${label}: Samvat ${s}`, `Expected: ${expected.join('/')}`);
+    });
+
+    // ═══════════════════════════════════════════════════
+    // TEST 7: DUAL TITHI DETECTION
+    // ═══════════════════════════════════════════════════
+    // Check multiple dates for valid dual tithi format
+    let dualFound = false;
+    for (let day = 1; day <= 30; day++) {
+      const d = new Date(2026, 3, day, 18, 0, 0); // evening times more likely dual
+      const r = TithiService.get(d);
+      if (r.includes('(1)') && r.includes('(2)')) {
+        dualFound = true;
+        log('DualTithi', 'PASS', `Dual tithi detected on Apr ${day}`, r);
+        break;
+      }
+    }
+    if (!dualFound) {
+      // Try more months
+      for (let m = 0; m < 12 && !dualFound; m++) {
+        for (let day = 1; day <= 28; day += 3) {
+          const d = new Date(2026, m, day, 20, 0, 0);
+          const r = TithiService.get(d);
+          if (r.includes('(1)') && r.includes('(2)')) {
+            dualFound = true;
+            log('DualTithi', 'PASS', `Dual tithi found on ${d.toDateString()}`, r);
+            break;
+          }
+        }
+      }
+    }
+    if (!dualFound) {
+      log('DualTithi', 'WARN', 'No dual tithi detected in scan (may be timing-dependent)');
+    }
+
+    // ═══════════════════════════════════════════════════
+    // TEST 8: IST TIMEZONE HANDLING
+    // ═══════════════════════════════════════════════════
+    // Same date at different hours should give same tithi (sunrise-based)
+    const istDate1 = new Date(2026, 3, 10, 8, 0, 0);  // 8 AM
+    const istDate2 = new Date(2026, 3, 10, 14, 0, 0); // 2 PM
+    const istDate3 = new Date(2026, 3, 10, 22, 0, 0); // 10 PM
+
+    const istR1 = TithiService.get(istDate1);
+    const istR2 = TithiService.get(istDate2);
+    // Note: istR3 might differ due to dual tithi, but base tithi should match
+    const baseMatch = istR1.split(' ').slice(0,2).join(' ') === istR2.split(' ').slice(0,2).join(' ');
+    assert('IST', baseMatch, 'Same date 8AM vs 2PM → same base tithi', `8AM: ${istR1} | 2PM: ${istR2}`);
+
+    // ═══════════════════════════════════════════════════
+    // TEST 9: NO CRASHES ON EXTREME DATES
+    // ═══════════════════════════════════════════════════
+    const extremeDates = [
+      new Date(2020, 0, 1),
+      new Date(2025, 11, 31),
+      new Date(2030, 6, 15),
+      new Date(2000, 5, 21),
+    ];
+    extremeDates.forEach(d => {
+      try {
+        const r = TithiService.get(d);
+        assert('Robustness', r && r !== '---', `No crash: ${d.toDateString()}`, r);
+      } catch(e) {
+        log('Robustness', 'FAIL', `Crash on ${d.toDateString()}`, e.message);
+      }
+    });
+
+    // ═══════════════════════════════════════════════════
+    // TEST 10: FULL 365-DAY SWEEP (no undefined/crash)
+    // ═══════════════════════════════════════════════════
+    let sweepFails = 0;
+    let sweepUndefined = 0;
+    const maasDistribution = {};
+
+    for (let day = 0; day < 365; day++) {
+      const d = new Date(2026, 0, 1 + day, 12, 0, 0);
+      try {
+        const r = TithiService.get(d);
+        if (!r || r === '---' || r.includes('undefined')) {
+          sweepFails++;
+        }
+        const maas = r.split(' ')[0];
+        maasDistribution[maas] = (maasDistribution[maas] || 0) + 1;
+      } catch(e) {
+        sweepFails++;
+      }
+    }
+
+    assert('YearSweep', sweepFails === 0, `365-day sweep: ${365-sweepFails}/365 valid`, `${sweepFails} failures`);
+
+    // Check maas distribution — each Hindu month should appear ~28-32 days
+    const maasKeys = Object.keys(maasDistribution);
+    assert('YearSweep', maasKeys.length >= 11, `${maasKeys.length} unique maas found in year`, JSON.stringify(maasDistribution));
+
+    // ═══════════════════════════════════════════════════
+    // RENDER RESULTS
+    // ═══════════════════════════════════════════════════
+    const summaryEl = document.getElementById('summary');
+    const total = passed + failed + warnings;
+    summaryEl.innerHTML = `
+      <h2 style="margin-top:0;">📊 Test Summary</h2>
+      <div>Total: <strong>${total}</strong> | 
+      <span class="pass">✅ Passed: ${passed}</span> | 
+      <span class="fail">❌ Failed: ${failed}</span> | 
+      <span class="warn">⚠️ Warnings: ${warnings}</span></div>
+      <div style="margin-top:8px;">Accuracy: <strong>${total > 0 ? ((passed/total)*100).toFixed(1) : 0}%</strong></div>
+    `;
+
+    // Group results by category
+    const categories = {};
+    results.forEach(r => {
+      if (!categories[r.category]) categories[r.category] = [];
+      categories[r.category].push(r);
+    });
+
+    let html = '';
+
+    // Month sweep table
+    html += '<h2>📅 12-Month Maas Sweep</h2>';
+    html += '<table><tr><th>Month</th><th>Date</th><th>Maas</th><th>Paksha</th><th>Full Output</th><th>Samvat</th><th>Status</th></tr>';
+    monthSweepData.forEach(row => {
+      const cls = row.maasOk ? 'pass' : 'fail';
+      html += `<tr><td>${row.month}</td><td>${row.date}</td><td class="${cls}">${row.maas}</td><td>${row.paksha}</td><td>${row.tithiStr}</td><td>${row.samvat}</td><td class="${cls}">${row.maasOk ? '✅' : '❌'}</td></tr>`;
+    });
+    html += '</table>';
+
+    // Maas distribution
+    html += '<h2>📊 Maas Distribution (365 days)</h2>';
+    html += '<table><tr><th>Maas</th><th>Days</th><th>Status</th></tr>';
+    Object.entries(maasDistribution).sort((a,b) => {
+      const order = ['चैत्र','वैशाख','ज्येष्ठ','आषाढ़','श्रावण','भाद्रपद','आश्विन','कार्तिक','मार्गशीर्ष','पौष','माघ','फाल्गुन'];
+      return order.indexOf(a[0]) - order.indexOf(b[0]);
+    }).forEach(([maas, count]) => {
+      const ok = count >= 20 && count <= 40;
+      html += `<tr><td>${maas}</td><td>${count}</td><td class="${ok ? 'pass' : 'warn'}">${ok ? '✅' : '⚠️'}</td></tr>`;
+    });
+    html += '</table>';
+
+    // All test results
+    Object.entries(categories).forEach(([cat, items]) => {
+      html += `<h2>${cat}</h2>`;
+      items.forEach(r => {
+        const cls = r.status === 'PASS' ? 'pass' : r.status === 'FAIL' ? 'fail' : 'warn';
+        html += `<div class="${cls}">${r.status === 'PASS' ? '✅' : r.status === 'FAIL' ? '❌' : '⚠️'} ${r.message}`;
+        if (r.detail) html += ` <span class="info">[${r.detail}]</span>`;
+        html += '</div>';
+      });
+    });
+
+    document.getElementById('results').innerHTML = html;
+  </script>
+</body>
+</html>
