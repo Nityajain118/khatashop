@@ -803,3 +803,31 @@ select.form-control option { background: var(--bg-card); }
   .sig-box.right { text-align: center; }
   .thank-you { position: absolute; bottom: -30px; left: 0; right: 0; text-align: center; font-size: 11px; color: #94A3B8; font-style: italic; }
 }
+
+/* ── Back to Apps Button (Khatashop / Tithi) ── */
+.top-back-btn {
+  position: fixed;
+  top: 14px;
+  left: 14px;
+  z-index: 9999;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 7px 14px;
+  border-radius: 9px;
+  cursor: pointer;
+  letter-spacing: 0.02em;
+  transition: background 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  font-family: var(--font-main);
+}
+.top-back-btn:hover {
+  background: rgba(255, 255, 255, 0.18);
+  border-color: rgba(255, 255, 255, 0.35);
+  color: #fff;
+  box-shadow: 0 0 14px rgba(255, 255, 255, 0.12);
+}
+

@@ -14,7 +14,7 @@ const App = (() => {
       if (!screen) screen = 'home';
 
       // PREVENT INVALID ROUTES
-      const allowed = ['home','addEntry','customer','detail','settings','report','common'];
+      const allowed = ['home','addEntry','customer','detail','settings','report','common','sbook'];
       if (!allowed.includes(screen)) {
         console.warn('Blocked invalid route:', screen);
         screen = 'home';
@@ -64,6 +64,7 @@ const App = (() => {
         case 'settings':   SettingsScreen.render(container); break;
         case 'report':     ReportScreen.render(container); break;
         case 'common':     CommonScreen.render(container); break;
+        case 'sbook':      SBookScreen.render(container, param); break;
         default:           HomeScreen.render(container);
       }
     } catch (err) {
@@ -108,6 +109,7 @@ const App = (() => {
       settings: 'Settings',
       report: 'Daily Report',
       common: '🔗 Common Customers',
+      sbook: 'Statement Book',
     };
 
     let title = titles[screen] || 'Tithi Ledger Pro';

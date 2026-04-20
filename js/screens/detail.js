@@ -92,15 +92,15 @@ const DetailScreen = (() => {
 
         <!-- ── MODE TOGGLE (Simple | Khata) ── -->
         <div style="padding: 12px 16px; display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid var(--border);">
-           <div style="font-size:1.1rem; font-weight:700;">
-             ${_viewMode === 'simple' ? '📊 Live Summary' : '📜 Khata Ledger'}
-           </div>
-           <div style="display:flex; flex-direction:column; align-items:flex-end; gap:8px;">
-             <!-- VIEW TOGGLE -->
+           <div style="display:flex; align-items:center; gap:8px;">
              <div class="view-mode-switch" style="background:var(--bg-card); border:1px solid var(--border); border-radius:10px; display:flex; font-size:0.82rem; overflow:hidden; font-weight:700;">
                <div style="padding:6px 16px; cursor:pointer; border-radius:8px; background:${_viewMode === 'simple' ? 'linear-gradient(135deg, var(--accent), var(--accent-glow))' : 'transparent'}; color:${_viewMode === 'simple' ? 'var(--bg-deep)' : 'var(--text-secondary)'}; transition:all 0.25s;" onclick="DetailScreen.setViewMode('simple')">📊 Simple</div>
                <div style="padding:6px 16px; cursor:pointer; border-radius:8px; background:${_viewMode === 'khata' ? 'linear-gradient(135deg, #10b981, #059669)' : 'transparent'}; color:${_viewMode === 'khata' ? 'white' : 'var(--text-secondary)'}; transition:all 0.25s;" onclick="DetailScreen.setViewMode('khata')">📜 Khata</div>
              </div>
+             <!-- ── S BOOK BUTTON ── -->
+             <div style="cursor:pointer; padding:6px 12px; border-radius:8px; background:linear-gradient(135deg, #7c3aed, #6d28d9); color:white; font-size:0.78rem; font-weight:700; white-space:nowrap; box-shadow:0 2px 8px rgba(124,58,237,0.35); transition:all 0.2s;" onclick="App.navigate('sbook','${_customerId}')" title="Statement Book">📒 S Book</div>
+           </div>
+           <div style="display:flex; flex-direction:column; align-items:flex-end; gap:8px;">
              <!-- CALC MODE -->
              <div style="background:var(--bg-card); border:1px solid var(--border); border-radius:8px; display:flex; font-size:0.75rem; overflow:hidden; font-weight:600;">
                <div style="padding:4px 10px; cursor:pointer; background:${_mode === 'normal' ? 'var(--accent)' : 'transparent'}; color:${_mode === 'normal' ? 'white' : 'var(--text-secondary)'};" onclick="DetailScreen.setMode('normal')">📅 Normal</div>
