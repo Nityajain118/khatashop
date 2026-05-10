@@ -139,6 +139,22 @@ const App = (() => {
     _render(_currentScreen);
   }
 
+  /* ───────────────── FIRM SELECTOR ───────────────── */
+
+  function _initFirmSelector() {
+    const select = document.getElementById('topbarFirmSelect');
+    if (!select) return;
+    select.innerHTML = FirmManager.buildSelectOptions(FirmManager.getActiveFirmId());
+  }
+
+  window.onFirmChanged = () => {
+    const select = document.getElementById('topbarFirmSelect');
+    if (!select) return;
+    const val = select.value;
+    DB.setActiveFirm(val || null);
+    _render(_currentScreen); // Refresh the current screen
+  };
+
   /* ───────────────── DEMO DATA ───────────────── */
 
   function _seedDemoData() {
@@ -179,6 +195,8 @@ const App = (() => {
 
       DB.migrateIfNeeded();
       DB.patchV3();
+      FirmManager.seedDefaultFirm();
+      _initFirmSelector();
 
       if (typeof FinanceEngine !== 'undefined') {
         FinanceEngine.resetCacheAndRecalculate();
@@ -218,7 +236,8 @@ const App = (() => {
     navigate,
     goBack,
     toggleMode,
-    init
+    init,
+    refreshFirmSelector: _initFirmSelector
   };
 
 })();

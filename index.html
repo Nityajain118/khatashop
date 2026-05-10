@@ -42,7 +42,8 @@
     <header class="topbar">
       <button class="topbar-back hidden" id="btnBack" onclick="App.goBack()">&#8592;</button>
       <div class="topbar-title" id="topbarTitle">Tithi Ledger Pro</div>
-      <div class="topbar-actions">
+      <div class="topbar-actions" style="display:flex;align-items:center;gap:6px;">
+        <select id="topbarFirmSelect" class="firm-select" onchange="window.onFirmChanged && window.onFirmChanged()"></select>
         <button class="icon-btn" id="btnThemeToggle" onclick="ThemeToggle.toggle()" title="Theme">🌙</button>
         <button class="icon-btn" id="btnHinduToggle" onclick="App.toggleMode()" title="Mode Switch">🪔</button>
         <button class="icon-btn" onclick="App.navigate('settings')" title="Settings">⚙️</button>
@@ -96,6 +97,7 @@
   <script src="js/services/pdf.js"></script>
   <script src="js/services/notification.js"></script>
   <script src="js/services/report.js"></script>
+  <script src="js/services/firmManager.js"></script>
   <script src="js/widgets/toast.js"></script>
   <script src="js/widgets/themeToggle.js"></script>
   <script src="js/widgets/entryCard.js"></script>

@@ -36,7 +36,8 @@ const CommonScreen = (() => {
       source:  'Gold Loan'
     })).filter(c => c.name && c.mobile);
 
-    const khata = (_safeRead('TLP_customers') || []).map(c => ({
+    const allKhata = _safeRead('TLP_customers') || [];
+    const khata = FirmManager.filterCustomers(allKhata).map(c => ({
       name:    (c.name  || '').trim(),
       village: (c.address || c.village || '').trim(),
       mobile:  _normMobile(c.phone || c.mobile),

@@ -236,7 +236,7 @@ const SBookScreen = (() => {
      Reads loans + payments — no recalculation, no mutation
      ══════════════════════════════════════════════════════════════ */
   function _buildRows(customerId) {
-    const loans = DB.getCustomerLoans(customerId) || [];
+    const loans = FirmManager.filterEntries(DB.getCustomerLoans(customerId)) || [];
     const flat = [];
 
     loans.forEach(loan => {

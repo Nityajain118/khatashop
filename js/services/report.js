@@ -5,7 +5,7 @@
 const ReportService = (() => {
 
   function getDailyCollection(date = new Date()) {
-    const entries = DB.getEntries();
+    const entries = FirmManager.filterEntries(DB.getEntries());
     const target  = date.toISOString().split('T')[0];
     let total = 0;
     const collections = [];
@@ -23,7 +23,7 @@ const ReportService = (() => {
   }
 
   function getMonthlyCollection(year = new Date().getFullYear(), month = new Date().getMonth()) {
-    const entries = DB.getEntries();
+    const entries = FirmManager.filterEntries(DB.getEntries());
     let total = 0;
     entries.forEach(e => {
       (e.payments || []).forEach(p => {
@@ -35,7 +35,7 @@ const ReportService = (() => {
   }
 
   function getOverallStats() {
-    const entries = DB.getEntries();
+    const entries = FirmManager.filterEntries(DB.getEntries());
     
     let totalPrincipal = 0, totalInterest = 0, totalPaid = 0;
     let overdueCount = 0, paidCount = 0, activeCount = 0;
@@ -67,14 +67,14 @@ const ReportService = (() => {
 
     return {
       totalEntries: entries.length,
-      totalCustomers: DB.getCustomers().length,
+      totalCustomers: FirmManager.filterCustomers(DB.getCustomers()).length,
       totalPrincipal, totalBalance, totalInterest, totalPaid,
       overdueCount, paidCount, activeCount,
     };
   }
 
   function getWeeklyData() {
-    const entries = DB.getEntries();
+    const entries = FirmManager.filterEntries(DB.getEntries());
     const days = [];
     for (let i = 6; i >= 0; i--) {
       const d = new Date();

@@ -10,6 +10,8 @@ const DB = (() => {
     settings: 'TLP_settings',
     shop: 'TLP_shop',
     migrated: 'TLP_migrated_v2',
+    firms: 'TLP_firms',
+    activeFirm: 'TLP_activeFirm',
   };
 
   /* ── MEMORY-FIRST STORE ── */
@@ -18,7 +20,9 @@ const DB = (() => {
     entries: null,
     settings: null,
     shop: null,
-    migrated: null
+    migrated: null,
+    firms: null,
+    activeFirm: null
   };
 
   let _flushTimer = null;
@@ -42,6 +46,8 @@ const DB = (() => {
     Store.settings  = safeParse(KEYS.settings, { isHinduMode: true, notificationsEnabled: false });
     Store.shop      = safeParse(KEYS.shop, { name: '', phone: '', address: '' });
     Store.migrated  = safeParse(KEYS.migrated, false);
+    Store.firms     = safeParse(KEYS.firms, []);
+    Store.activeFirm= safeParse(KEYS.activeFirm, null);
   }
 
   // Pre-load everything into memory synchronously ONLY on boot
@@ -64,6 +70,8 @@ const DB = (() => {
       localStorage.setItem(KEYS.settings,  JSON.stringify(Store.settings));
       localStorage.setItem(KEYS.shop,      JSON.stringify(Store.shop));
       localStorage.setItem(KEYS.migrated,  JSON.stringify(Store.migrated));
+      localStorage.setItem(KEYS.firms,     JSON.stringify(Store.firms));
+      localStorage.setItem(KEYS.activeFirm,JSON.stringify(Store.activeFirm));
     } catch (e) {
       console.error("[DB] Flush failed:", e);
     }
@@ -203,6 +211,32 @@ const DB = (() => {
     _scheduleFlush();
   }
 
+  /* ── FIRMS ── */
+  function getFirms() { return Store.firms; }
+  
+  function saveFirms(firms) {
+    Store.firms = firms;
+    _scheduleFlush();
+  }
+  
+  function addFirm(firm) {
+    const firms = getFirms();
+    firms.push(firm);
+    saveFirms(firms);
+    return firm;
+  }
+  
+  function deleteFirm(id) {
+    saveFirms(getFirms().filter(f => f.id !== id));
+  }
+  
+  function getActiveFirm() { return Store.activeFirm; }
+  
+  function setActiveFirm(id) {
+    Store.activeFirm = id;
+    _scheduleFlush();
+  }
+
   /* ── SEARCH ── */
   function searchEntries(query) {
     if (!query) return getEntries();
@@ -339,6 +373,7 @@ const DB = (() => {
     addPayment, deletePayment,
     getSettings, saveSetting, getSetting,
     getShop, saveShop,
+    getFirms, saveFirms, addFirm, deleteFirm, getActiveFirm, setActiveFirm,
     searchEntries, searchCustomers,
     migrateIfNeeded, patchV3,
     _flushNow // Expose for testing/debugging

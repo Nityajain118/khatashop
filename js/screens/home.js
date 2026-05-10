@@ -27,7 +27,7 @@ const HomeScreen = (() => {
 
         <!-- HERO STATS -->
         <div class="summary-grid stagger">
-          ${chip('Customers',          DB.getCustomers().length,               '👥')}
+          ${chip('Customers',          FirmManager.filterCustomers(DB.getCustomers()).length, '👥')}
           ${chip('Total Balance',      InterestService.fmt(stats.totalBalance), '💰', 'accent')}
           ${chip('Overdue',            stats.overdueCount,                     '⚠️', 'danger')}
           ${chip("Today's Collection", InterestService.fmt(daily.total),       '📥', 'success')}
@@ -118,9 +118,9 @@ const HomeScreen = (() => {
   /* ── customer data helpers ───────────────────────────────────── */
   function _getComputedCustomers() {
     if (_computedCustomers) return _computedCustomers;
-    const all = DB.getCustomers().map(c => ({ ...c }));
+    const all = FirmManager.filterCustomers(DB.getCustomers()).map(c => ({ ...c }));
     all.forEach(c => {
-      const loans = DB.getCustomerLoans(c.customerId);
+      const loans = FirmManager.filterEntries(DB.getCustomerLoans(c.customerId));
       c._loans = loans;
       if (loans.length === 0) {
         c.status  = 'active';

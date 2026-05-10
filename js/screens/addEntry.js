@@ -58,10 +58,11 @@ const AddEntryScreen = (() => {
           </div>
 
           <!-- CUSTOMER INFO (disabled if existing customer) -->
-          <div class="form-group">
+          <div class="form-group" style="position: relative;">
             <label class="form-label">👤 Customer Name *</label>
-            <input class="form-control" id="aeName" type="text" placeholder="e.g. Ramesh Kumar"
+            <input class="form-control" id="aeName" type="text" placeholder="e.g. Ramesh Kumar" autocomplete="off"
                    value="${prefillName}" ${isExistingCustomer ? 'disabled style="opacity:0.6;"' : ''} required />
+            <div id="aeAutocomplete" class="autocomplete-dropdown hidden"></div>
           </div>
 
           <div class="form-row">
@@ -240,9 +241,18 @@ const AddEntryScreen = (() => {
       });
     }
 
-    // aeName — bind once with validation
+    // aeName — bind once with validation and autocomplete
     bindOnce('aeName', 'input', function() {
       this.value = this.value.replace(/[^a-zA-Z\s]/g, "");
+      _handleAutocomplete(this.value);
+    });
+    
+    // Close autocomplete on click outside
+    document.addEventListener('click', function(e) {
+      if (e.target.id !== 'aeName') {
+        const dd = document.getElementById('aeAutocomplete');
+        if (dd) dd.classList.add('hidden');
+      }
     });
 
     // aePhone — bind once with validation
@@ -358,6 +368,60 @@ const AddEntryScreen = (() => {
 
     // Auto-dismiss after 5 seconds
     setTimeout(() => popup.remove(), 5000);
+  }
+
+  function _handleAutocomplete(query) {
+    const dd = document.getElementById('aeAutocomplete');
+    if (!dd) return;
+    if (!query || query.length < 2) {
+      dd.classList.add('hidden');
+      return;
+    }
+    
+    // Search customers across active firm (or all firms if 'All Firms' selected)
+    const allCustomers = DB.searchCustomers(query);
+    const customers = FirmManager.filterCustomers(allCustomers).slice(0, 5); // top 5
+    
+    if (customers.length === 0) {
+      dd.classList.add('hidden');
+      return;
+    }
+    
+    let html = '';
+    customers.forEach(c => {
+      const displayAddr = c.address || 'No Address';
+      html += `
+        <div class="autocomplete-item" onclick="AddEntryScreen.selectCustomer('${c.customerId}')">
+          <div class="autocomplete-item-name">${c.name}</div>
+          <div class="autocomplete-item-details">📱 ${c.phone} &nbsp;|&nbsp; 📍 ${displayAddr}</div>
+        </div>
+      `;
+    });
+    
+    dd.innerHTML = html;
+    dd.classList.remove('hidden');
+  }
+
+  function selectCustomer(customerId) {
+    const c = DB.getCustomer(customerId);
+    if (!c) return;
+    
+    document.getElementById('aeName').value = c.name;
+    document.getElementById('aePhone').value = c.phone;
+    document.getElementById('aeAddress').value = c.address;
+    
+    if (c.photo) {
+      _photoData = c.photo;
+      const preview = document.getElementById('photoPreview');
+      if (preview) {
+        preview.innerHTML = `<img src="${c.photo}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" />`;
+      }
+    }
+    
+    _prefilledCustomerId = c.customerId;
+    
+    const dd = document.getElementById('aeAutocomplete');
+    if (dd) dd.classList.add('hidden');
   }
 
   function updatePreview() {
@@ -510,6 +574,8 @@ const AddEntryScreen = (() => {
 
     // Get or create customer
     let customer;
+    const activeFirmId = FirmManager.getDefaultFirmId();
+    
     if (_prefilledCustomerId) {
       customer = DB.getCustomer(_prefilledCustomerId);
       // Update photo if newly added
@@ -519,6 +585,11 @@ const AddEntryScreen = (() => {
       }
     } else {
       customer = DB.getOrCreateCustomer({ name, phone, address, photo: _photoData });
+      // Assign firm to new customer if not assigned
+      if (!customer.firmId) {
+        customer.firmId = activeFirmId;
+        DB.updateCustomer(customer);
+      }
     }
 
     const days = InterestService.getDuration(date, due).totalDays;
@@ -527,7 +598,8 @@ const AddEntryScreen = (() => {
       customerId: customer.customerId,
       name, phone, address, principal: prin, interestRate: rate,
       loanDate: date, dueDate: due, notes,
-      days, interestType, compoundingMonths, calculationMode
+      days, interestType, compoundingMonths, calculationMode,
+      firmId: activeFirmId
     });
 
     DB.addEntry(entry);
@@ -542,5 +614,5 @@ const AddEntryScreen = (() => {
     }, 400);
   }
 
-  return { render, onPhotoSelected, updatePreview, save, showRatePopup };
+  return { render, onPhotoSelected, updatePreview, save, showRatePopup, selectCustomer };
 })();

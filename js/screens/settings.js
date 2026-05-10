@@ -100,6 +100,32 @@ const SettingsScreen = (() => {
           </div>
         </div>
 
+        <!-- FIRMS MANAGEMENT -->
+        <div class="settings-section">
+          <div class="settings-title">🏢 Firms Management</div>
+          <div class="card">
+            <div id="firmsListContainer" style="margin-bottom: 16px; display: flex; flex-direction: column; gap: 8px;">
+              <!-- Firms will be rendered here -->
+            </div>
+            
+            <div style="border-top: 1px dashed var(--border); padding-top: 12px; margin-top: 8px;">
+              <div style="font-size: 0.85rem; font-weight: 600; color: var(--gold); margin-bottom: 10px;">➕ Add New Firm</div>
+              <div class="form-group">
+                <label class="form-label">Firm Name *</label>
+                <input class="form-control" id="newFirmName" placeholder="e.g. Branch Office" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Address</label>
+                <input class="form-control" id="newFirmAddr" placeholder="e.g. Village Name" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Phone</label>
+                <input class="form-control" id="newFirmPhone" type="tel" maxlength="10" placeholder="e.g. 9876543210" />
+              </div>
+              <button class="btn btn-secondary btn-full" onclick="SettingsScreen.addFirm()">Add Firm</button>
+            </div>
+          </div>
+        </div>
 
         <!-- PANCHANG OVERRIDE -->
         <div class="settings-section">
@@ -264,6 +290,8 @@ const SettingsScreen = (() => {
       </div>
     `;
 
+    _renderFirmsList();
+
     // Restore manual panchang selects
     const manualData = localStorage.getItem('manualPanchang');
     if (manualData) {
@@ -288,6 +316,76 @@ const SettingsScreen = (() => {
     document.getElementById('sShopPhone')?.addEventListener('input', function() {
       this.value = this.value.replace(/\D/g, '').slice(0, 10);
     });
+  }
+
+  /* ── Firms Management ── */
+  function _renderFirmsList() {
+    const container = document.getElementById('firmsListContainer');
+    if (!container) return;
+    const firms = FirmManager.getAll();
+    if (firms.length === 0) {
+      container.innerHTML = '<div style="color:var(--text-muted);font-size:0.8rem;text-align:center;">No firms found.</div>';
+      return;
+    }
+    
+    let html = '';
+    firms.forEach(f => {
+      const isMain = f.isMain;
+      const c = FirmManager.getColor(f);
+      html += `
+        <div style="display:flex; justify-content:space-between; align-items:center; background:var(--bg-card2); padding:10px 12px; border-radius:var(--radius-sm); border:1px solid var(--border);">
+          <div style="display:flex; align-items:center; gap:10px;">
+            <div style="width:12px; height:12px; border-radius:50%; background:${c.bg};"></div>
+            <div>
+              <div style="font-weight:600; font-size:0.9rem; color:var(--text-primary);">${f.name} ${isMain ? '<span style="font-size:0.7rem;color:var(--success);border:1px solid var(--success);padding:1px 4px;border-radius:4px;margin-left:4px;">Main</span>' : ''}</div>
+              <div style="font-size:0.7rem; color:var(--text-muted);">${f.address || 'No address'}</div>
+            </div>
+          </div>
+          ${!isMain ? `<button style="background:none; border:none; color:var(--danger); cursor:pointer; padding:4px;" onclick="SettingsScreen.deleteFirm('${f.id}')" title="Delete Firm">🗑</button>` : ''}
+        </div>
+      `;
+    });
+    container.innerHTML = html;
+  }
+
+  function addFirm() {
+    const nameEl = document.getElementById('newFirmName');
+    const name = nameEl?.value.trim();
+    if (!name) { Toast.show('⚠️ Firm Name is required'); return; }
+    
+    const address = document.getElementById('newFirmAddr')?.value.trim() || '';
+    const phone = document.getElementById('newFirmPhone')?.value.trim() || '';
+    
+    const newFirm = {
+      id: 'firm_' + Date.now(),
+      name, address, phone,
+      isMain: false,
+      colorIndex: Math.floor(Math.random() * FirmManager.FIRM_COLORS.length),
+      createdAt: new Date().toISOString()
+    };
+    
+    DB.addFirm(newFirm);
+    Toast.show('✅ Firm added successfully!');
+    
+    if (nameEl) nameEl.value = '';
+    const addrEl = document.getElementById('newFirmAddr');
+    if (addrEl) addrEl.value = '';
+    const phoneEl = document.getElementById('newFirmPhone');
+    if (phoneEl) phoneEl.value = '';
+    
+    _renderFirmsList();
+    if (window.App && App.refreshFirmSelector) App.refreshFirmSelector();
+  }
+
+  function deleteFirm(firmId) {
+    if (!confirm('Are you sure you want to delete this firm? Existing loans for this firm will be hidden until re-assigned.')) return;
+    DB.deleteFirm(firmId);
+    if (DB.getActiveFirm() === firmId) {
+      DB.setActiveFirm(null);
+    }
+    Toast.show('🗑 Firm deleted');
+    _renderFirmsList();
+    if (window.App && App.refreshFirmSelector) App.refreshFirmSelector();
   }
 
   /* ── Shop ── */
@@ -533,6 +631,7 @@ const SettingsScreen = (() => {
     exportData, importData, doImport, clearAll, closeConfirm, executeClearAll,
     toggleManualMode, applyManual, saveApiConfig, testApiConfig,
     onLogoSelected, onSignatureSelected, clearLogo, clearSignature, setPageSize,
+    addFirm, deleteFirm
   };
 
 })();

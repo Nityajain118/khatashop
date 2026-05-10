@@ -28,7 +28,7 @@ const DetailScreen = (() => {
     }
 
     // Build unified transaction list
-    const loans = DB.getCustomerLoans(customerId);
+    const loans = FirmManager.filterEntries(DB.getCustomerLoans(customerId));
     _transactions = [];
 
     const latestUdhaar = [...loans].reverse().find(l => l.type !== 'jama');
@@ -674,7 +674,7 @@ const DetailScreen = (() => {
     const todayStr = new Date().toISOString().split('T')[0];
     
     // Find latest udhaar to copy interest settings correctly
-    const loans = DB.getCustomerLoans(_customerId);
+    const loans = FirmManager.filterEntries(DB.getCustomerLoans(_customerId));
     const latestUdhaar = [...loans].reverse().find(l => l.type !== 'jama');
 
     const entry = createEntry({
