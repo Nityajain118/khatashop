@@ -646,8 +646,22 @@ const DetailScreen = (() => {
 
   /* ── QUICK PAYMENT (Simple Mode) ── */
   function openQuickPay() {
-    document.getElementById('quickPayModal')?.classList.remove('hidden');
-    document.getElementById('quickPayAmount')?.focus();
+    const modal = document.getElementById('quickPayModal');
+    if (modal) modal.classList.remove('hidden');
+    // Always focus amount regardless of device (user opened it explicitly)
+    setTimeout(() => {
+      const el = document.getElementById('quickPayAmount');
+      if (el) { el.focus(); el.select(); }
+    }, 80);
+    // Enter in amount → save; Enter in note → save
+    ['quickPayAmount', 'quickPayNote'].forEach(id => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.onkeydown = function(e) {
+        if (e.key === 'Enter') { e.preventDefault(); DetailScreen.saveQuickPay(); }
+        if (e.key === 'Escape') { e.preventDefault(); DetailScreen.closeQuickPay(); }
+      };
+    });
   }
 
   function closeQuickPay() {
@@ -726,8 +740,27 @@ const DetailScreen = (() => {
 
   /* ── JAMA MODAL (Khata Mode) ── */
   function openJamaModal() {
-    document.getElementById('jamaModal')?.classList.remove('hidden');
-    document.getElementById('jamaAmount')?.focus();
+    const modal = document.getElementById('jamaModal');
+    if (modal) modal.classList.remove('hidden');
+    setTimeout(() => {
+      const el = document.getElementById('jamaAmount');
+      if (el) { el.focus(); el.select(); }
+    }, 80);
+    // Enter key: amount → note → save
+    const jamaAmtEl = document.getElementById('jamaAmount');
+    const jamaNoteEl = document.getElementById('jamaNote');
+    if (jamaAmtEl) {
+      jamaAmtEl.onkeydown = function(e) {
+        if (e.key === 'Enter') { e.preventDefault(); jamaNoteEl ? jamaNoteEl.focus() : DetailScreen.saveJama(); }
+        if (e.key === 'Escape') { e.preventDefault(); DetailScreen.closeJamaModal(); }
+      };
+    }
+    if (jamaNoteEl) {
+      jamaNoteEl.onkeydown = function(e) {
+        if (e.key === 'Enter') { e.preventDefault(); DetailScreen.saveJama(); }
+        if (e.key === 'Escape') { e.preventDefault(); DetailScreen.closeJamaModal(); }
+      };
+    }
   }
 
   function closeJamaModal() {

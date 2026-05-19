@@ -63,6 +63,7 @@ const AddEntryScreen = (() => {
             <input class="form-control" id="aeName" type="text" placeholder="e.g. Ramesh Kumar" autocomplete="off"
                    value="${prefillName}" ${isExistingCustomer ? 'disabled style="opacity:0.6;"' : ''} required />
             <div id="aeAutocomplete" class="autocomplete-dropdown hidden"></div>
+            <div id="aeDuplicateBanner" style="display:none;margin-top:4px;"></div>
           </div>
 
           <div class="form-row">
@@ -77,6 +78,7 @@ const AddEntryScreen = (() => {
                      value="${prefillAddress}" ${isExistingCustomer ? 'disabled style="opacity:0.6;"' : ''} />
             </div>
           </div>
+          <div id="aePhoneBanner" style="display:none;margin-top:4px;"></div>
 
           <div class="divider"></div>
 
@@ -241,10 +243,11 @@ const AddEntryScreen = (() => {
       });
     }
 
-    // aeName — bind once with validation and autocomplete
+    // aeName — bind once with validation, autocomplete + duplicate detection
     bindOnce('aeName', 'input', function() {
       this.value = this.value.replace(/[^a-zA-Z\s]/g, "");
       _handleAutocomplete(this.value);
+      _handleDuplicateDetection(this.value);
     });
     
     // Close autocomplete on click outside
@@ -255,9 +258,11 @@ const AddEntryScreen = (() => {
       }
     });
 
-    // aePhone — bind once with validation
+    // aePhone — bind once with validation + live customer lookup
     bindOnce('aePhone', 'input', function() {
       this.value = this.value.replace(/\D/g, "").slice(0, 10);
+      if (this.value.length === 10) _handlePhoneLookup(this.value);
+      else { const b = document.getElementById('aePhoneBanner'); if (b) b.style.display = 'none'; }
     });
 
     // aePrincipal — bind once with validation
@@ -318,6 +323,98 @@ const AddEntryScreen = (() => {
 
     document.removeEventListener('panchangUpdated', updatePreview);
     document.addEventListener('panchangUpdated', updatePreview);
+
+    // ── ENTER KEY NAVIGATION (Quick Loan Entry Mode) ──
+    const _fieldOrder = isExistingCustomer
+      ? ['aePrincipal', 'aeRate', 'aeLoanDate', 'aeDueDate', 'aeNotes']
+      : ['aePhone', 'aeName', 'aeAddress', 'aePrincipal', 'aeRate', 'aeLoanDate', 'aeDueDate', 'aeNotes'];
+
+    _fieldOrder.forEach((id, idx) => {
+      const el = document.getElementById(id);
+      if (!el || el.disabled) return;
+      el.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          if (id === 'aeNotes') { AddEntryScreen.save(); return; }
+          for (let i = idx + 1; i < _fieldOrder.length; i++) {
+            const next = document.getElementById(_fieldOrder[i]);
+            if (next && !next.disabled) { next.focus(); return; }
+          }
+          document.getElementById('aeSubmitBtn')?.focus();
+        }
+        if (e.key === 'Enter' && e.shiftKey) {
+          e.preventDefault();
+          for (let i = idx - 1; i >= 0; i--) {
+            const prev = document.getElementById(_fieldOrder[i]);
+            if (prev && !prev.disabled) { prev.focus(); return; }
+          }
+        }
+      });
+    });
+
+    // Auto-focus first field
+    if (typeof FocusManager !== 'undefined') {
+      FocusManager.focusById(isExistingCustomer ? 'aePrincipal' : 'aePhone', 150);
+    }
+  }
+
+  /* ── Phone Lookup ── */
+  function _handlePhoneLookup(phone) {
+    const banner = document.getElementById('aePhoneBanner');
+    if (!banner) return;
+    const found = DB.getCustomers().find(c => c.phone === phone);
+    if (!found) { banner.style.display = 'none'; return; }
+    const nameEl = document.getElementById('aeName');
+    const addrEl = document.getElementById('aeAddress');
+    if (nameEl && !nameEl.disabled && !nameEl.value.trim()) nameEl.value = found.name;
+    if (addrEl && !addrEl.disabled && !addrEl.value.trim()) addrEl.value = found.address || '';
+    if (found.photo) {
+      _photoData = found.photo;
+      const preview = document.getElementById('photoPreview');
+      if (preview) preview.innerHTML = `<img src="${found.photo}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" />`;
+    }
+    _prefilledCustomerId = found.customerId;
+    banner.style.display = 'block';
+    banner.innerHTML = `
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);border-radius:10px;">
+        <span style="font-size:1.3rem;">✅</span>
+        <div style="flex:1;">
+          <div style="font-weight:700;font-size:0.9rem;color:var(--success);">Existing Customer Found</div>
+          <div style="font-size:0.78rem;color:var(--text-secondary);">${found.name} — ${found.address || 'No address'}</div>
+        </div>
+        <button onclick="AddEntryScreen.clearPhoneBanner()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:1.1rem;">✕</button>
+      </div>`;
+  }
+
+  function clearPhoneBanner() {
+    _prefilledCustomerId = null;
+    const b = document.getElementById('aePhoneBanner');
+    if (b) b.style.display = 'none';
+    ['aeName','aeAddress'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) { el.disabled = false; el.style.opacity = '1'; }
+    });
+  }
+
+  /* ── Duplicate Name Detection ── */
+  function _handleDuplicateDetection(name) {
+    const banner = document.getElementById('aeDuplicateBanner');
+    if (!banner) return;
+    if (!name || name.trim().length < 3) { banner.style.display = 'none'; return; }
+    const dupes = typeof FuzzySearch !== 'undefined'
+      ? FuzzySearch.findDuplicates(name, DB.getCustomers())
+      : [];
+    if (!dupes.length) { banner.style.display = 'none'; return; }
+    banner.style.display = 'block';
+    banner.innerHTML = `
+      <div style="background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.3);border-radius:10px;padding:10px 14px;">
+        <div style="font-size:0.78rem;font-weight:700;color:var(--warn);margin-bottom:6px;">⚠️ Similar customers found:</div>
+        ${dupes.map(c => `
+          <div onclick="AddEntryScreen.selectCustomer('${c.customerId}')" style="display:flex;justify-content:space-between;padding:6px 8px;border-radius:6px;cursor:pointer;font-size:0.82rem;transition:background 0.15s;" onmouseover="this.style.background='rgba(255,255,255,0.08)'" onmouseout="this.style.background=''">
+            <span style="font-weight:600;">${c.name}</span>
+            <span style="color:var(--text-muted);">${c.address || '—'} · ${c.phone || ''}</span>
+          </div>`).join('')}
+      </div>`;
   }
 
   function showRatePopup() {
@@ -614,5 +711,5 @@ const AddEntryScreen = (() => {
     }, 400);
   }
 
-  return { render, onPhotoSelected, updatePreview, save, showRatePopup, selectCustomer };
+  return { render, onPhotoSelected, updatePreview, save, showRatePopup, selectCustomer, clearPhoneBanner };
 })();

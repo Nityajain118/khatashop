@@ -49,10 +49,11 @@ const HomeScreen = (() => {
         </div>
 
         <!-- SEARCH (Name, Phone, Village) -->
-        <div class="search-bar">
+        <div class="search-bar" style="position:relative;">
           <span class="search-icon">🔍</span>
           <input type="text" id="searchInput" placeholder="Search by name, phone or village…"
-                 oninput="HomeScreen.onSearch()" />
+                 oninput="HomeScreen.onSearch()" autocomplete="off" />
+          <div id="searchDropdown" class="search-inline-dropdown" style="display:none;"></div>
         </div>
 
         <!-- FILTER TABS -->
@@ -77,6 +78,56 @@ const HomeScreen = (() => {
     // Subscribe to async panchang updates
     document.removeEventListener('panchangUpdated', _onPanchangUpdated);
     document.addEventListener('panchangUpdated', _onPanchangUpdated);
+
+    // ── KEYBOARD HANDLERS (use assignment = not addEventListener to prevent stacking) ──
+    const searchEl = document.getElementById('searchInput');
+    if (searchEl) {
+      // Arrow Down from search → enter dropdown
+      searchEl.onkeydown = function(e) {
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          const first = document.querySelector('.sid-item');
+          if (first) { first.focus(); return; }
+        }
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          this.value = '';
+          _hideDropdown();
+          _computedCustomers = null;
+          setFilter(_currentFilter);
+          return;
+        }
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          // If dropdown is visible, open the first item
+          const activeItem = document.querySelector('.sid-item.sid-active');
+          const firstItem  = document.querySelector('.sid-item');
+          const target     = activeItem || firstItem;
+          if (target && target.dataset.customerId) {
+            _hideDropdown();
+            App.navigate('customer', target.dataset.customerId);
+          }
+        }
+      };
+
+      // Close dropdown when clicking outside
+      document.addEventListener('click', function _outsideClick(e) {
+        if (!e.target.closest('.search-bar')) {
+          _hideDropdown();
+          document.removeEventListener('click', _outsideClick);
+        }
+      });
+    }
+
+    // Desktop single-key shortcut: N = New Loan (when nothing is focused)
+    document.onkeydown = function(e) {
+      const tag = document.activeElement?.tagName?.toLowerCase();
+      const isInput = tag === 'input' || tag === 'textarea' || tag === 'select';
+      if (!isInput && e.key === 'n' && !e.ctrlKey && !e.altKey && !e.metaKey) {
+        e.preventDefault();
+        App.navigate('addEntry');
+      }
+    };
   }
 
   /* ── chip / tab helpers ─────────────────────────────────────── */
@@ -366,13 +417,83 @@ const HomeScreen = (() => {
     requestAnimationFrame(() => { container.innerHTML = html; });
   }
 
-  /* ── global search ───────────────────────────────────────────── */
+  /* ── Inline search dropdown helpers ── */
+  let _dropdownActive = -1;
+
+  function _showDropdown(results, query) {
+    const dd = document.getElementById('searchDropdown');
+    if (!dd) return;
+    if (!results.length) { dd.style.display = 'none'; return; }
+    _dropdownActive = -1;
+    dd.style.display = 'block';
+    dd.innerHTML = results.map((c, i) => {
+      const initial = (c.name || '?')[0].toUpperCase();
+      const phone   = c.phone || '';
+      const addr    = c.address || '';
+      let name = c.name || '';
+      if (query) {
+        try {
+          const esc = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          name = name.replace(new RegExp(`(${esc})`, 'gi'), '<b style="color:var(--gold);">$1</b>');
+        } catch(_){}
+      }
+      return `<div class="sid-item" tabindex="0" data-customer-id="${c.customerId}"
+        onclick="HomeScreen._selectDropdown('${c.customerId}')"
+        onkeydown="HomeScreen._dropdownKeydown(event,'${c.customerId}')"
+        onmouseenter="HomeScreen._hoverDropdown(${i})">
+        <div class="sid-avatar">${initial}</div>
+        <div class="sid-info">
+          <div class="sid-name">${name}</div>
+          <div class="sid-meta">${phone ? '📱 '+phone : ''}${addr ? ' · 📍'+addr : ''}</div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  function _hideDropdown() {
+    const dd = document.getElementById('searchDropdown');
+    if (dd) dd.style.display = 'none';
+    _dropdownActive = -1;
+  }
+
+  function _selectDropdown(customerId) { _hideDropdown(); App.navigate('customer', customerId); }
+
+  function _dropdownKeydown(e, customerId) {
+    const items = document.querySelectorAll('.sid-item');
+    if (e.key === 'Enter')     { e.preventDefault(); _selectDropdown(customerId); return; }
+    if (e.key === 'Escape')    { e.preventDefault(); _hideDropdown(); document.getElementById('searchInput')?.focus(); return; }
+    if (e.key === 'ArrowDown') { e.preventDefault(); _dropdownActive = Math.min(_dropdownActive + 1, items.length - 1); items[_dropdownActive]?.focus(); }
+    if (e.key === 'ArrowUp')   {
+      e.preventDefault();
+      _dropdownActive = Math.max(_dropdownActive - 1, -1);
+      if (_dropdownActive < 0) document.getElementById('searchInput')?.focus();
+      else items[_dropdownActive]?.focus();
+    }
+  }
+
+  function _hoverDropdown(i) { _dropdownActive = i; }
+
+  /* ── global search ── */
   function onSearch() {
     clearTimeout(_searchTimer);
-    _searchTimer = setTimeout(() => {
-      _computedCustomers = null;
-      setFilter(_currentFilter);
-    }, 300);
+    const q = (document.getElementById('searchInput')?.value || '').trim();
+    if (q.length > 0) {
+      _searchTimer = setTimeout(() => {
+        const all = typeof FirmManager !== 'undefined'
+          ? FirmManager.filterCustomers(DB.getCustomers()) : DB.getCustomers();
+        const results = typeof FuzzySearch !== 'undefined'
+          ? FuzzySearch.searchCustomers(all, q, 7)
+          : all.filter(c => c.name.toLowerCase().includes(q.toLowerCase()) ||
+              (c.phone||'').includes(q) ||
+              (c.address||'').toLowerCase().includes(q.toLowerCase())).slice(0, 7);
+        _showDropdown(results, q);
+        _computedCustomers = null;
+        setFilter(_currentFilter);
+      }, 120);
+    } else {
+      _hideDropdown();
+      _searchTimer = setTimeout(() => { _computedCustomers = null; setFilter(_currentFilter); }, 200);
+    }
   }
 
   /* ── Panchang helpers ────────────────────────────────────────── */
@@ -425,6 +546,9 @@ const HomeScreen = (() => {
     toggleManualHome,
     openPanchangEditor,
     toggleVillage,
-    onVillageSearch
+    onVillageSearch,
+    _selectDropdown,
+    _dropdownKeydown,
+    _hoverDropdown
   };
 })();

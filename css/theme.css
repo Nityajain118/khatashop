@@ -874,3 +874,145 @@ select.form-control option { background: var(--bg-card); }
   box-shadow: 0 0 14px rgba(255, 255, 255, 0.12);
 }
 
+/* ════════════════════════════════════════════════════
+   KEYBOARD WORKFLOW + DESKTOP ENHANCEMENTS
+   ════════════════════════════════════════════════════ */
+
+/* ── Visible focus ring for keyboard navigation ── */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+button:focus-visible, .nav-btn:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+
+/* ── Desktop global search button (hidden on mobile) ── */
+.desktop-search-btn { display: none; }
+@media (min-width: 768px) and (pointer: fine) {
+  .desktop-search-btn {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 0.88rem; padding: 5px 12px;
+    border-radius: var(--radius-sm);
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.15);
+    color: rgba(255,255,255,0.8); cursor: pointer;
+    transition: all 0.2s; white-space: nowrap;
+  }
+  .desktop-search-btn:hover { background: rgba(255,255,255,0.16); color: #fff; }
+}
+
+/* ── Ctrl+K badge inside home search bar ── */
+.search-kbd-hint {
+  display: none; font-size: 0.68rem; padding: 2px 8px;
+  background: rgba(255,255,255,0.08); border: 1px solid var(--border);
+  border-radius: 6px; color: var(--text-muted); cursor: pointer;
+  white-space: nowrap; transition: all 0.2s; flex-shrink: 0;
+  font-weight: 600; font-family: var(--font-main);
+}
+.search-kbd-hint:hover { background: var(--gold-glow); border-color: var(--accent-soft); color: var(--accent-glow); }
+@media (min-width: 768px) and (pointer: fine) {
+  .search-kbd-hint { display: inline-flex; align-items: center; }
+}
+
+/* ── Desktop layout: wider screens ── */
+@media (min-width: 1024px) {
+  .screen { padding: 28px 32px; max-width: 960px; }
+  .summary-grid { grid-template-columns: repeat(4, 1fr); }
+  .entries-grid { grid-template-columns: 1fr 1fr 1fr; }
+  .form-row { gap: 20px; }
+  .form-control { padding: 13px 16px; }
+}
+@media (min-width: 600px) and (max-width: 1023px) {
+  .screen { padding: 20px 24px; }
+}
+
+/* ── Active field highlight on desktop ── */
+@media (pointer: fine) {
+  .form-control:focus {
+    box-shadow: 0 0 0 3px rgba(59,130,246,0.15), inset 0 0 0 1px var(--accent);
+    border-color: var(--accent);
+  }
+  .form-control { transition: border-color 0.15s, box-shadow 0.15s; }
+  .autocomplete-item { padding: 12px 16px; transition: background 0.1s; }
+}
+
+/* ── Modal: center on desktop ── */
+@media (min-width: 640px) {
+  .modal-overlay { align-items: center; }
+  .modal-box { border-radius: var(--radius-xl); max-height: 85vh; }
+}
+
+/* ── Topbar on wider screens ── */
+@media (min-width: 768px) {
+  .topbar { padding: 0 24px; gap: 14px; }
+  .topbar-title { font-size: 1.1rem; }
+}
+
+/* ── Print: hide keyboard UI elements ── */
+@media print {
+  .desktop-search-btn, .search-kbd-hint, .kbd-hint-bar,
+  #globalSearchOverlay { display: none !important; }
+}
+
+/* ════════════════════════════════════════════════════
+   INLINE SEARCH DROPDOWN — appears below search bar
+   ════════════════════════════════════════════════════ */
+.search-inline-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0; right: 0;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.35), 0 2px 8px rgba(0,0,0,0.2);
+  z-index: 500;
+  overflow: hidden;
+  max-height: 320px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--accent-soft) transparent;
+}
+
+.sid-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 16px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border-light, rgba(255,255,255,0.05));
+  transition: background 0.1s;
+  outline: none;
+}
+.sid-item:last-child { border-bottom: none; }
+.sid-item:hover,
+.sid-item:focus {
+  background: var(--gold-glow, rgba(251,191,36,0.07));
+}
+.sid-item.sid-active { background: var(--gold-glow, rgba(251,191,36,0.07)); }
+
+.sid-avatar {
+  width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0;
+  background: linear-gradient(135deg, var(--accent), var(--accent-glow));
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 800; font-size: 0.9rem; color: #fff;
+}
+
+.sid-info { flex: 1; min-width: 0; }
+
+.sid-name {
+  font-weight: 600; font-size: 0.9rem;
+  color: var(--text-primary);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+.sid-meta {
+  font-size: 0.72rem; color: var(--text-muted);
+  margin-top: 2px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+/* Ensure search-bar is a positioning context */
+.search-bar { position: relative !important; }
